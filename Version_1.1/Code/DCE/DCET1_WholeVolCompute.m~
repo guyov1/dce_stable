@@ -1,0 +1,229 @@
+TTls={'BATfinal' 'VpFinal' 'KtransFinal' 'Kepfinal' 'VeFinal' 'RSSFinal' 'RSS0' 'RSS1' 'RSS2' 'RSS3' 'F1v0' 'F2v1' 'F3v2' 'BAT1' 'Vp1' 'BAT2' 'Vp2' 'Ktrans2' 'BAT3' 'Vp3' 'Ktrans3' 'Kep3' 'Ve3' 'WhichModel'};
+
+if(Options.MakeNoBATManualArtAnalysis)
+    PKMFNmanNoBAT=[WorkingP 'ManualArtNoBATPK_AIF.mat'];
+    
+    WorkingP=['/data/home/gilad/Desktop/DCE/gilad/Database/DCEOut/' D(pp).name filesep];
+        PKMFN=[WorkingP 'ManualArtNoBATPK2.mat'];
+        if(exist(PKMFN,'file'))
+            disp([D(pp).name ' already exist']);
+            continue;
+        end
+        if(~exist([WorkingP 'AfterCTC.mat'],'file'))
+            continue;
+        end
+        a=load([WorkingP 'AfterCTC.mat']);
+
+        nVols=size(a.CTC2D,2);
+        STimeBetweenDCEVols=a.TimeBetweenDCEVols;
+        STimeBetweenDCEVolsMin=a.TimeBetweenDCEVols/60;
+        SMin2Timestep=1/STimeBetweenDCEVolsMin;
+        nSVols=nVols;
+        if(nSVols>70 || nSVols<30)
+            continue;
+        end
+        SampleTs=((1:nSVols)-1)*STimeBetweenDCEVolsMin;
+
+        ManualArt3D=loadniidata([WorkingP 'manualArt.nii']);
+        F1=find(ManualArt3D);
+        F2=find(a.Msk2);
+        CVI=find(ismember(F2,F1));
+        ArtCTCs=a.CTC2D(CVI,:);
+        MeanArtCTC=mean(ArtCTCs,1);
+        MeanArtCTC=MeanArtCTC*max(ArtCTCs(:))./max(MeanArtCTC);
+        MeanArtCTC2=mean(NormalizeByRows(ArtCTCs),1);
+        MeanArtCTC2=MeanArtCTC2*max(ArtCTCs(:))./max(MeanArtCTC2);
+        
+        figure(100);clf;subplot(2,2,1);plot(SampleTs,ArtCTCs');subplot(2,2,2);plot(SampleTs,NormalizeByRows(ArtCTCs)');
+        subplot(2,2,3);plot(SampleTs,ArtCTCs');hold on;plot(SampleTs,MeanArtCTC,'k','LineWidth',2);plot(SampleTs,MeanArtCTC2,'m','LineWidth',2);
+        subplot(2,2,4);plot(SampleTs,NormalizeByRows(ArtCTCs)'*max(ArtCTCs(:)));hold on;plot(SampleTs,MeanArtCTC,'k','LineWidth',2);plot(SampleTs,MeanArtCTC2,'m','LineWidth',2);
+        gprint(100,[WorkingP 'manualArt.png']);
+        close(100);
+        MeanArtCTC=MeanArtCTC2;
+        
+        N=size(a.CTC2DBigGood,1);
+        PKs=NaN(N,24);
+        
+        CSAIF=cumtrapz(SampleTs,MeanArtCTC);
+        
+        MskX=a.DBrainMask;
+        MskX(MskX)=a.MskCTCGood;
+        %
+        
+        NAtATime=5000;
+        disp(['There are ' num2str(N) ' voxels to compute ' PKMFN]);
+        before=now;
+        for i=1:NAtATime:N
+            tic
+            CurIs=i:min(N,i+NAtATime-1);
+            PKs(CurIs,:) = FindPKBATgAIFMuraseF4Models_TProb(a.CTC2DBigGood(CurIs,:),MeanArtCTC,SampleTs,CSAIF);
+            t=toc;
+            TimeFromStart=now-before;
+            WillFinishAt=before+TimeFromStart*N/CurIs(end);
+            disp(['Calculating ' num2str(CurIs(1)) ':' num2str(CurIs(end)) ' took ' num2str(t) 's. Will finish around ' datestr(WillFinishAt)]);
+        end
+        disp(['Finished ' WorkingP]);
+        save(PKMFN,'PKs','MskX','MeanArtCTC');
+end
+
+if(Options.MakeBATManualArtAnalysis)
+    PKMFNman=[WorkingP 'ManualArtBAT_AIF.mat'];
+    PKM3DFNman=[WorkingP 'PKM3DManual.mat'];
+
+    load(PKMFNman,'OutAIFParamManual');
+    OutAIFParam=OutAIFParamManual;
+    %% Full 3D calculation
+    TimeBetweenDCEVolsMin=TimeBetweenDCEVols/60;
+    InterpolationFactor=ceil(TimeBetweenDCEVols);
+    SampleTs=((1:nSVols)-1)*TimeBetweenDCEVolsMin;
+
+    HInterpolationFactor=ceil(InterpolationFactor*Options.SubSecondResolution);
+    % HInterpolationFactor=ceil(InterpolationFactor*Options.SubSecRes);
+    Hdt=TimeBetweenDCEVolsMin/HInterpolationFactor;
+    HSampleTs=0:Hdt:SampleTs(end);
+
+    ThreeSec=ceil(Options.MaxTDif_ForWholeVOI/(Hdt*60));
+    TDif=-Hdt*ThreeSec:Hdt:Hdt*ThreeSec;
+    nTDif=numel(TDif);
+
+    AIF_Parker8t=@(x,t) AIF_Parkerg2( t,1,x(3),x(1),x(5),x(6),x(1)+x(4),x(7),x(8))*x(2);
+
+    HAIF=AIF_Parker8t(OutAIFParam,HSampleTs);
+
+    CHAIF=cumtrapz(HSampleTs,HAIF);
+
+    SAIF=zeros([nTDif numel(SampleTs)]);
+    CSAIF=zeros([nTDif numel(SampleTs)]);
+    for i=1:nTDif
+        SAIF(i,:)=interp1(HSampleTs,HAIF,SampleTs+TDif(i),[],'extrap');
+        CSAIF(i,:)=interp1(HSampleTs,CHAIF,SampleTs+TDif(i),[],'extrap');
+    end
+    %%
+    clear R1F DCE2D2 adCTC2D B1 Baseline CT1 CosFA DCEM0
+
+    % load([WorkingP 'CTCBrainMsk.mat'],'CTC2DBrainMsk');
+    load([WorkingP 'CTCMsk' USStr '.mat'],'CTC2DBigGood','MskCTCGood');
+    CTCFN=[WorkingP 'AfterCTC' USStr '.mat'];
+    load(CTCFN,'DBrainMask');
+
+    MskCTCGood3D=DBrainMask;
+    MskCTCGood3D(MskCTCGood3D)=MskCTCGood;
+
+    N=size(CTC2DBigGood,1);
+    PKs=NaN(N,24);
+    NAtATime=5000;
+    disp(['There are ' num2str(N) ' voxels to compute ' PKMFNman]);
+    before=now;
+    for i=1:NAtATime:N
+        tic
+        CurIs=i:min(N,i+NAtATime-1);
+        PKs(CurIs,:) = FindPKBATgAIFMuraseF4Models_TProb(CTC2DBigGood(CurIs,:),SAIF,SampleTs,CSAIF);
+        t=toc;
+        TimeFromStart=now-before;
+        WillFinishAt=before+TimeFromStart*N/CurIs(end);
+        disp(['Calculating manual ' num2str(CurIs(1)) ':' num2str(CurIs(end)) ' took ' num2str(t) 's. Will finish around ' datestr(WillFinishAt)]);
+    end
+    save(PKM3DFNman,'OutAIFParam','PKs');
+    %% Output to Nii
+    RelaxP=[WorkingP 'ManualArtBAT' filesep];
+    mkdir(RelaxP);
+    MeanFN=[WorkingP 'DCEMean.nii'];
+    disp(RelaxP);
+
+    MskX=DBrainMask;
+    MskX(MskX)=MskCTCGood;
+
+    N=sumn(MskX);
+    for i=1:numel(TTls)
+        Tmp3D=MskX*0;
+        Tmp3D(MskX)=PKs(1:N,i);
+        Raw2Nii(Tmp3D,[RelaxP TTls{i} '.nii'],'float32', MeanFN);
+    end
+    disp('Finished Niftis');
+end
+
+if(~Options.MakeBATAutoArtAnalysis)
+    return;
+end
+
+% [CVI BinCVI Bin2CVI]=ChooseRepVoxelsForAIFFind(Idx3D>0,CTC2D,BolusStart,Options.Rep_MaxAroundBolus,Options.Rep_RatioToEnd,Options.Rep_nPerSet);
+% % [CVI BinCVI Bin2CVI]=ChooseRepVoxelsForAIFFind(Idx3D>0,CTC2D,BolusStart,5,5,2);
+%
+% % Options=struct('SubSecRes',{[]},'MaxTDif',{[]});
+%
+% DataNoise=rmadCTC2D(CVI);
+% DataToFit=CTC2D(CVI,:);
+
+PKMFN=[WorkingP 'PKM' USStr '.mat'];
+PKM3DFN=[WorkingP 'PKM3D' USStr '.mat'];
+
+%%
+load(PKMFN,'OutAIFParam');
+%% Full 3D calculation
+TimeBetweenDCEVolsMin=TimeBetweenDCEVols/60;
+InterpolationFactor=ceil(TimeBetweenDCEVols);
+SampleTs=((1:nSVols)-1)*TimeBetweenDCEVolsMin;
+
+HInterpolationFactor=ceil(InterpolationFactor*Options.SubSecondResolution);
+% HInterpolationFactor=ceil(InterpolationFactor*Options.SubSecRes);
+Hdt=TimeBetweenDCEVolsMin/HInterpolationFactor;
+HSampleTs=0:Hdt:SampleTs(end);
+
+ThreeSec=ceil(Options.MaxTDif_ForWholeVOI/(Hdt*60));
+TDif=-Hdt*ThreeSec:Hdt:Hdt*ThreeSec;
+nTDif=numel(TDif);
+
+AIF_Parker8t=@(x,t) AIF_Parkerg2( t,1,x(3),x(1),x(5),x(6),x(1)+x(4),x(7),x(8))*x(2);
+
+HAIF=AIF_Parker8t(OutAIFParam,HSampleTs);
+
+CHAIF=cumtrapz(HSampleTs,HAIF);
+
+SAIF=zeros([nTDif numel(SampleTs)]);
+CSAIF=zeros([nTDif numel(SampleTs)]);
+for i=1:nTDif
+    SAIF(i,:)=interp1(HSampleTs,HAIF,SampleTs+TDif(i),[],'extrap');
+    CSAIF(i,:)=interp1(HSampleTs,CHAIF,SampleTs+TDif(i),[],'extrap');
+end
+%%
+clear R1F DCE2D2 adCTC2D B1 Baseline CT1 CosFA DCEM0
+
+% load([WorkingP 'CTCBrainMsk.mat'],'CTC2DBrainMsk');
+load([WorkingP 'CTCMsk' USStr '.mat'],'CTC2DBigGood','MskCTCGood');
+CTCFN=[WorkingP 'AfterCTC' USStr '.mat'];
+load(CTCFN,'DBrainMask');
+
+MskCTCGood3D=DBrainMask;
+MskCTCGood3D(MskCTCGood3D)=MskCTCGood;
+
+N=size(CTC2DBigGood,1);
+PKs=NaN(N,24);
+NAtATime=5000;
+disp(['There are ' num2str(N) ' voxels to compute ' PKMFN]);
+before=now;
+for i=1:NAtATime:N
+    tic
+    CurIs=i:min(N,i+NAtATime-1);
+    PKs(CurIs,:) = FindPKBATgAIFMuraseF4Models_TProb(CTC2DBigGood(CurIs,:),SAIF,SampleTs,CSAIF);
+    t=toc;
+    TimeFromStart=now-before;
+    WillFinishAt=before+TimeFromStart*N/CurIs(end);
+    disp(['Calculating ' num2str(CurIs(1)) ':' num2str(CurIs(end)) ' took ' num2str(t) 's. Will finish around ' datestr(WillFinishAt)]);
+end
+save(PKM3DFN,'OutAIFParam','PKs');
+%% Output to Nii
+RelaxP=[WorkingP 'AutoArtBAT' filesep];
+mkdir(RelaxP);
+MeanFN=[WorkingP 'DCEMean.nii'];
+disp(RelaxP);
+
+MskX=DBrainMask;
+MskX(MskX)=MskCTCGood;
+        
+N=sumn(MskX);
+for i=1:numel(TTls)
+    Tmp3D=MskX*0;
+    Tmp3D(MskX)=PKs(1:N,i);
+    Raw2Nii(Tmp3D,[RelaxP TTls{i} '.nii'],'float32', MeanFN);
+end
+disp('Finished Niftis');

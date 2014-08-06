@@ -1,0 +1,24 @@
+WorkingP='\\fmri-t9\users\Moran\OptDCEinMS\MS-IT-MTX\Sub03_SIONOV_YURA\Study20140611_154016_baseline\DCE\long\SiYu_20140611\';
+%%
+CTC4D=loadniidata([WorkingP 'CTC4D.nii']);
+VeinsROI=loadniidata([WorkingP 'Veins.nii']);
+CTC2D=Reshape4d22d(CTC4D,VeinsROI>0);
+Params=load([WorkingP 'PKM.mat']);
+GeneralDataFN=[WorkingP 'Params.mat'];
+Params2=load(GeneralDataFN);
+nTimePointsToUse=50;
+InterpolationFactor=ceil(Params.TimeBetweenDCEVolsFinal*Params.Options.SubSecondResolution);
+HTs=0:Params.TimeBetweenDCEVolsFinal/InterpolationFactor:Params.GoodTs(nTimePointsToUse)*60;
+STsI=1:InterpolationFactor:numel(HTs);
+HAIF=Params.HAIF(1:numel(HTs))*Params2.AIFAmpCoeff;
+IntAIF=trapz(HAIF)/InterpolationFactor;
+MxIntVeins=max(trapz(CTC2D(:,1:nTimePointsToUse)'));
+NewFactor=MxIntVeins/IntAIF;
+NewHAIF=HAIF*NewFactor;
+figure;
+plot(Params.GoodTs(1:nTimePointsToUse)*60,CTC2D(:,1:nTimePointsToUse)');
+hold on;
+plot(HTs,HAIF,'b','LineWidth',3);
+plot(Params.GoodTs(1:nTimePointsToUse)*60,HAIF(STsI),'b*');
+plot(HTs,NewHAIF,'m','LineWidth',3);
+title(['New factor: ' num2str(NewFactor)]);

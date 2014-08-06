@@ -1,0 +1,35 @@
+This is a collection of functions for local polynomial
+smoothing with a local bandwidth computed by EBBS (Ruppert,
+1997, JASA).  The .m files in this directory use .m files
+in the main directory of .m files and in the subdirectory
+lpoly.  (Any file whose name begins "lpoly" is in the subdirectory
+lpoly.)  Many of these .m files need to call .m files in the
+directory "utility".
+
+auto17.m:  	This is the main driver program.  You probably will not
+		call it directly, but all other ebbs functions call it.
+
+autobic.m:	EBBS for bivariate regression functions (under development)
+
+ebbslogit.m:	EBBS for local logistic regression
+
+ebbsmv01.m:	Calls ebbsmvparam with default values of the parameters.
+		(Though non-default values can be passed in.)
+		This is the function that most users will call.  It
+		estimates the mean function or derivative thereof and
+		the variance function.  It calls the following: autob17,
+		lpolydb, ebbsvar, lpolyres, bspan, ebbsmvparam, lpolyvar, 
+		prebin (all these are in the directory "utility").
+
+
+ebbspam.m:	Fits a semiparametric additive model, as discussed
+		in Opsomer and Ruppert, A root-n consistent backfitting 
+		estimator for semiparametric additive modelling. 
+		JCGS, 8, 715--732.
+
+ebbsden.m:	Calls ebbsdensity with default parameters
+
+ebbsdensity.m:	Estimates probability densities
+
+ebbsvar.m:	Estimates variance functions.  Usually used indirectly
+		by calling ebbsmv01 

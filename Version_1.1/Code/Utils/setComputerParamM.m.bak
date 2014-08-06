@@ -1,0 +1,42 @@
+function setComputerParamM(ParamName, Value)
+
+CompParams=load('CompParams.mat');
+CompParams=CompParams.CompParams;
+CompParams.(ParamName)=Value;
+
+%% Save CompParams in CompParams.mat
+
+% Get PC name
+PC_name = getenv('ComputerName');
+
+% Home - Windows
+if ( strcmpi(PC_name,'GUYOV-PC') )
+    
+    %save('C:\Users\Guy\GoogleDrive\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    save('H:\Guy\Dropbox\University\Msc\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    
+    % Lab - Windows 1
+elseif ( strcmpi(PC_name,'FMRI-TOKYO') )
+
+    %save('C:\Users\guyn\GoogleDrive\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    save('C:\Users\guyn\Dropbox\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    
+    % Lab - Windows 2
+elseif ( strcmpi(PC_name,'FMRI-HERZL') )
+
+    %save('C:\Users\guyn\GoogleDrive\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    save('D:\guyn\Dropbox\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    
+    % Lab - T9
+elseif ( strcmpi(PC_name,'FMRI-T9') )
+
+    %save('C:\Users\guyn\GoogleDrive\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    save('\\fmri-tokyo\Users\guyn\Dropbox\University\Msc\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+    
+    % Gilad's Default
+else
+
+    %save('C:\Users\Guy\GoogleDrive\Thesis\Thesis\Matlab\Code\Utils\CompParams.mat','CompParams');
+end
+
+

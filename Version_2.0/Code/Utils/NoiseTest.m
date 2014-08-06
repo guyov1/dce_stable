@@ -1,0 +1,14 @@
+a=0;b=0;
+S1=a+randn(1,1000000);
+S2=b+randn(1,1000000);
+C=sqrt(S1.^2+S2.^2)-sqrt(a*a+b*b);
+figure(1);clf;subplot(1,3,1);hist(C,100);
+title([mean(C) std(C)]);
+S3=a+randn(1,1000000);
+S4=b+randn(1,1000000);
+D=sqrt(S3.^2+S4.^2)-sqrt(a*a+b*b);
+subplot(1,3,2);hist(D,100);
+title([mean(D) std(D)]);
+E=(C+D)/2;
+subplot(1,3,3);hist(E,100);
+title([mean(E) std(E)]);
