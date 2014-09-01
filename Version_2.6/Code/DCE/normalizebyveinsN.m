@@ -2,26 +2,27 @@
 WorkingP='\\fmri-t9\users\Moran\OptDCE\Healthy\02_Sharon_Rabinovitz\DCE\ShRa_20101224\';
 DataP=[WorkingP 'AutoArtBAT' filesep];
 PercentToUse=0.9;
+
 %% [Gilad] This is blabla copied from other scripts just to get the data to work on
-CTC4D=loadniidata([WorkingP 'CTC4D.nii']);
-VeinsROI=loadniidata([WorkingP 'Veins.nii']);
-CTC2D=Reshape4d22d(CTC4D,VeinsROI>0);
+CTC4D    = loadniidata([WorkingP 'CTC4D.nii']);
+VeinsROI = loadniidata([WorkingP 'Veins.nii']);
+CTC2D    = Reshape4d22d(CTC4D,VeinsROI>0);
 load([WorkingP 'PKM.mat']);
 load([WorkingP 'Params.mat']);
 
-SampleTs=GoodTs;
-TimeVec=SampleTs;
+SampleTs = GoodTs;
+TimeVec  = SampleTs;
 % As before, set all relevant paramters
-TimeBetweenDCEVolsMin=TimeBetweenDCEVolsFinal/60;
-InterpolationFactor=ceil(TimeBetweenDCEVolsFinal);
-
-HInterpolationFactor = ceil(InterpolationFactor*Options.SubSecondResolution);
+TimeBetweenDCEVolsMin = TimeBetweenDCEVolsFinal/60;
+InterpolationFactor   = ceil(TimeBetweenDCEVolsFinal);
+HInterpolationFactor  = ceil(InterpolationFactor*Options.SubSecondResolution);
 % HInterpolationFactor=ceil(InterpolationFactor*Options.SubSecRes);
-Hdt                  = TimeBetweenDCEVolsMin/HInterpolationFactor;
-HSampleTs            = 0:Hdt:SampleTs(end);
-DTimeVec=diff(TimeVec);
-F=find(DTimeVec>DTimeVec(1)*2,1);
-nNormalTs=numel(TimeVec);
+Hdt                   = TimeBetweenDCEVolsMin/HInterpolationFactor;
+HSampleTs             = 0:Hdt:SampleTs(end);
+DTimeVec              = diff(TimeVec);
+F                     = find(DTimeVec>DTimeVec(1)*2,1);
+nNormalTs             = numel(TimeVec);
+
 if(~isempty(F))
     nNormalTs=F(1);
 end
@@ -37,44 +38,41 @@ else
 end
 
 % Create Parker's AIF
-HAIF=AIF_Parker9t(OutAIFParam,HSampleTs);
-
-DF=diff(GoodTs);
-nMainDCE=find(DF>DF(1)*1.1,1);
-nTimePointsToUse=numel(SampleTs);
+HAIF             = AIF_Parker9t(OutAIFParam,HSampleTs);
+DF               = diff(GoodTs);
+nMainDCE         = find(DF>DF(1)*1.1,1);
+nTimePointsToUse = numel(SampleTs);
 
 %% [Gilad] Here we compute the integral under the veins CTC, which is used in Sourbron's nrmalization
-IntAIF=trapz(HSampleTs,HAIF);
-IntVeins=trapz(SampleTs,CTC2D(:,1:nTimePointsToUse)');
-NVals=numel(IntVeins);
-% [Gilad] Take one of the largest AROCs' but not simply the max, so we
-% don't rely on only one voxel.
-Idx=floor(PercentToUse*NVals);
-Sorted=sort(IntVeins);
-MxIntVeins=Sorted(Idx);
-NewFactor=MxIntVeins/IntAIF;
-NewHAIF=HAIF*NewFactor;
+IntAIF      = trapz(HSampleTs,HAIF);
+IntVeins    = trapz(SampleTs,CTC2D(:,1:nTimePointsToUse)');
+NVals       = numel(IntVeins);
+% [Gilad] Take one of the largest AROCs' but not simply the max, so we don't rely on only one voxel.
+Idx         = floor(PercentToUse*NVals);
+Sorted      = sort(IntVeins);
+MxIntVeins  = Sorted(Idx);
+NewFactor   = MxIntVeins/IntAIF;
+NewHAIF     = HAIF*NewFactor;
 
-%% [Gilad] Here's the same, only just around the bolus (peak) time, so we
-% don't include the tail/washout in the integral, which seems meaningless
-[Mx, MxI]=max(HAIF);
-HIs=(MxI-HInterpolationFactor):(MxI+HInterpolationFactor);
-IntAIFBol=trapz(HSampleTs(HIs),HAIF(HIs));
-for i=1:size(CTC2D,1)
-    CurCTC=CTC2D(i,:);
-    [Mx, MxI]=max(CurCTC);
-    Is=max(1,(MxI-1)):min(size(CTC2D,2),(MxI+1));
-    IntVeinsBol(i)=trapz(SampleTs(Is),CTC2D(i,Is)');
+%% [Gilad] Here's the same, only just around the bolus (peak) time, so we don't include the tail/washout in the integral, which seems meaningless
+[Mx, MxI] = max(HAIF);
+HIs       = (MxI-HInterpolationFactor):(MxI+HInterpolationFactor);
+IntAIFBol = trapz(HSampleTs(HIs),HAIF(HIs));
+for i = 1:size(CTC2D,1)
+    CurCTC         = CTC2D(i,:);
+    [Mx, MxI]      = max(CurCTC);
+    Is             = max(1,(MxI-1)):min(size(CTC2D,2),(MxI+1));
+    IntVeinsBol(i) = trapz(SampleTs(Is),CTC2D(i,Is)');
 end
-NVals=numel(IntVeinsBol);
-Idx=floor(PercentToUse*NVals);
-Sorted=sort(IntVeinsBol);
-MxIntVeinsBol=Sorted(Idx);
-NewFactorBol=MxIntVeinsBol/IntAIFBol;
-NewHAIFBol=HAIF*NewFactorBol;
+NVals           = numel(IntVeinsBol);
+Idx             = floor(PercentToUse*NVals);
+Sorted          = sort(IntVeinsBol);
+MxIntVeinsBol   = Sorted(Idx);
+NewFactorBol    = MxIntVeinsBol/IntAIFBol;
+NewHAIFBol      = HAIF*NewFactorBol;
 
-FromJimCoeff=NewFactor/AIFAmpCoeff;
-FromJimCoeffBol=NewFactorBol/AIFAmpCoeff;
+FromJimCoeff    = NewFactor/AIFAmpCoeff;
+FromJimCoeffBol = NewFactorBol/AIFAmpCoeff;
 %% Figure output
 figure;
 plot(SampleTs,CTC2D(:,1:nTimePointsToUse)');
@@ -92,7 +90,6 @@ TmpA=loadniidata([DataP 'KtransFinalN.nii']);
 Raw2Nii(TmpA/FromJimCoeff,[DataP 'KtransFinalNS.nii'],'float32', MeanFN);
 TmpA=loadniidata([DataP 'VpFinalN.nii']);
 Raw2Nii(TmpA/FromJimCoeff,[DataP 'VpFinalNS.nii'],'float32', MeanFN);
-
 TmpA=loadniidata([DataP 'KtransFinalN.nii']);
 Raw2Nii(TmpA/FromJimCoeffBol,[DataP 'KtransFinalNSB.nii'],'float32', MeanFN);
 TmpA=loadniidata([DataP 'VpFinalN.nii']);
