@@ -1,10 +1,10 @@
 % WorkingP='\\fmri-t9\users\Moran\OptDCEinMS\MS-IT-MTX\Sub01_ARIE_CHEN\Study20140520_102624_baseline\DCE\long\ArCh_20140520\';
-WorkingP='\\fmri-t9\users\Moran\OptDCE\Healthy\03_Ifat_Harris\DCE\IfHa_20101230\';
+WorkingP='\\fmri-t9\users\Moran\OptDCE\Healthy\02_Sharon_Rabinovitz\DCE\ShRa_20101224\';
 DataP=[WorkingP 'AutoArtBAT' filesep];
 PercentToUse=0.9;
-%%
+%% [Gilad] This is blabla copied from other scripts just to get the data to work on
 CTC4D=loadniidata([WorkingP 'CTC4D.nii']);
-VeinsROI=loadniidata([WorkingP 'veins.nii']);
+VeinsROI=loadniidata([WorkingP 'Veins.nii']);
 CTC2D=Reshape4d22d(CTC4D,VeinsROI>0);
 load([WorkingP 'PKM.mat']);
 load([WorkingP 'Params.mat']);
@@ -43,22 +43,27 @@ DF=diff(GoodTs);
 nMainDCE=find(DF>DF(1)*1.1,1);
 nTimePointsToUse=numel(SampleTs);
 
+%% [Gilad] Here we compute the integral under the veins CTC, which is used in Sourbron's nrmalization
 IntAIF=trapz(HSampleTs,HAIF);
 IntVeins=trapz(SampleTs,CTC2D(:,1:nTimePointsToUse)');
 NVals=numel(IntVeins);
+% [Gilad] Take one of the largest AROCs' but not simply the max, so we
+% don't rely on only one voxel.
 Idx=floor(PercentToUse*NVals);
 Sorted=sort(IntVeins);
 MxIntVeins=Sorted(Idx);
 NewFactor=MxIntVeins/IntAIF;
 NewHAIF=HAIF*NewFactor;
 
+%% [Gilad] Here's the same, only just around the bolus (peak) time, so we
+% don't include the tail/washout in the integral, which seems meaningless
 [Mx, MxI]=max(HAIF);
 HIs=(MxI-HInterpolationFactor):(MxI+HInterpolationFactor);
 IntAIFBol=trapz(HSampleTs(HIs),HAIF(HIs));
 for i=1:size(CTC2D,1)
     CurCTC=CTC2D(i,:);
     [Mx, MxI]=max(CurCTC);
-    Is=(MxI-1):(MxI+1);
+    Is=max(1,(MxI-1)):min(size(CTC2D,2),(MxI+1));
     IntVeinsBol(i)=trapz(SampleTs(Is),CTC2D(i,Is)');
 end
 NVals=numel(IntVeinsBol);
@@ -70,7 +75,7 @@ NewHAIFBol=HAIF*NewFactorBol;
 
 FromJimCoeff=NewFactor/AIFAmpCoeff;
 FromJimCoeffBol=NewFactorBol/AIFAmpCoeff;
-
+%% Figure output
 figure;
 plot(SampleTs,CTC2D(:,1:nTimePointsToUse)');
 hold on;
@@ -80,18 +85,18 @@ h(3)=plot(HSampleTs,NewHAIFBol,'r','LineWidth',3);
 title(['New factor: ' num2str(FromJimCoeff) ', ' num2str(FromJimCoeffBol)]);
 legend(h,{'Jim','Sorbronne','Sorbronne Bol'});
 
-
+%% [Gilad] Writing the maps.
 MeanFN=[WorkingP 'DCEMean.nii'];
 
 TmpA=loadniidata([DataP 'KtransFinalN.nii']);
-Raw2Nii(TmpA/FromJimCoeffBol,[DataP 'KtransFinalNS.nii'],'float32', MeanFN);
+Raw2Nii(TmpA/FromJimCoeff,[DataP 'KtransFinalNS.nii'],'float32', MeanFN);
 TmpA=loadniidata([DataP 'VpFinalN.nii']);
-Raw2Nii(TmpA/FromJimCoeffBol,[DataP 'VpFinalNS.nii'],'float32', MeanFN);
+Raw2Nii(TmpA/FromJimCoeff,[DataP 'VpFinalNS.nii'],'float32', MeanFN);
 
 TmpA=loadniidata([DataP 'KtransFinalN.nii']);
-Raw2Nii(TmpA/FromJimCoeff,[DataP 'KtransFinalNSB.nii'],'float32', MeanFN);
+Raw2Nii(TmpA/FromJimCoeffBol,[DataP 'KtransFinalNSB.nii'],'float32', MeanFN);
 TmpA=loadniidata([DataP 'VpFinalN.nii']);
-Raw2Nii(TmpA/FromJimCoeff,[DataP 'VpFinalNSB.nii'],'float32', MeanFN);
+Raw2Nii(TmpA/FromJimCoeffBol,[DataP 'VpFinalNSB.nii'],'float32', MeanFN);
 
 % Save AIF factor
 save([WorkingP 'AIF_Sourbron_Factor.mat'],'NewFactor')
