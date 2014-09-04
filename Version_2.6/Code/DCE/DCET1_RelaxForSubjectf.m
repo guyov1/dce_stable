@@ -100,6 +100,7 @@ for j =FASetsToWorkOn
         
         % Not clear what the purpose of the following...
         if(Tmp>1 && Tmp<10 && exist(MainSubFN,'file'))
+            MainSubFN=[Set_Dir 'OrigFA_' sprintf('%02d',CurOtherFAsInfos(i).FlipAngle) '_' sprintf('%02d',CurOtherFAsInfos(i).SeriesNumber) '_' sprintf('%04d',floor(Tmp/2))   '.nii'];
             movefile(MainSubFN,OtherFABaseFNs{i});
             delete([Set_Dir 'OrigFA_' sprintf('%02d',CurOtherFAsInfos(i).FlipAngle) '_' sprintf('%02d',CurOtherFAsInfos(i).SeriesNumber) '_*.nii']);
         end

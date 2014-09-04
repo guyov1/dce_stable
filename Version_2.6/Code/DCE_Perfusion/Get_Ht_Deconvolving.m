@@ -1,5 +1,5 @@
-function [ Flow_vec, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_single_gauss_sec_vec, sigma_seconds_single_gauss_vec, Amp_single_gauss_vec, Est_ht, ...
-    fitted_gaussian, conv_result_ht, conv_result_gaussian, RMS_ht, RMS_gauss, RMS_params,...
+function [ Flow_vec, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, Est_IRF, ...
+    fitted_gaussian, conv_result_IRF, conv_result_gaussian, RMS_ht, RMS_gauss, RMS_params,...
     fitted_double_gaussian, conv_result_double_gaussian, double_gaussian_param_vec, ...
     RMS_double_gauss, RMS_params_double_gauss, Ktrans_vec, Vb_vec, Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] ...
     = Get_Ht_Deconvolving(Sim_Struct, AIF, Ct , Output_directory, Subject_name, Force_RealData_Calc, Verbosity)
@@ -70,12 +70,12 @@ USE_WIENER                      = Sim_Struct.USE_WIENER;
 USE_TICHONOV                    = Sim_Struct.USE_TICHONOV;
 
 %% Estimating h(t) by Wiener filter / Tikhonov Regularization
-Est_ht                   = zeros(num_voxels,num_time_stamps);
-est_delay_by_AIF_correct = zeros(1,num_voxels);
+Est_IRF                         = zeros(num_voxels,num_time_stamps);
+est_delay_by_AIF_correct        = zeros(1,num_voxels);
 
 
 if USE_WIENER
-    [Est_ht] = Wiener_Filter( min_interval*AIF, Ct, Fs);
+    [Est_IRF] = Wiener_Filter( min_interval*AIF, Ct, Fs);
 elseif USE_TICHONOV   
     
     % Choose knots for splines (currently takes every 1 out of 2 points)
@@ -170,13 +170,13 @@ elseif USE_TICHONOV
             [ ~, ~, ~, b_spline_result_2nd_deriv, ~, ~, ~, ~ ] =  ...
                 Regularization_Methods_Simulation( Sim_Ct_T, Ct(j,:)', Conv_Matrix, Conv_Matrix_no_noise, time_vec_minutes, lambda_vec_larss, normalize, min_interval, B_mat, B_PCA, plot_L_Curve, idx_fig, filter_type, Derivative_Time_Devision, plot_flag, RealData_Flag );
             
-            Est_ht(j,:) = b_spline_result_2nd_deriv;
+            Est_IRF(j,:) = b_spline_result_2nd_deriv;
             
             % Estimate delay
             % Correct h(t) estimation if it seems we have delay in AIF
             if Correct_estimation_due_to_delay
-                [est_delay_by_AIF_correct(j), AIF_delay_corrected(j ,:), Est_ht(j,:), ~] = ...
-                    AIF_Delay_Correct(In_Struct1, In_Struct2, Est_ht(j,:), Ct(j,:)', Verbosity, iter_num, avg_num, idx_fig);
+                [est_delay_by_AIF_correct(j), AIF_delay_corrected(j ,:), Est_IRF(j,:), ~] = ...
+                    AIF_Delay_Correct(In_Struct1, In_Struct2, Est_IRF(j,:), Ct(j,:)', Verbosity, iter_num, avg_num, idx_fig);
             else
                 AIF_delay_corrected(j ,:) = AIF;
             end
@@ -196,7 +196,7 @@ elseif USE_TICHONOV
             end
             
         end
-        save(Mat_File_Ht, 'Est_ht', 'est_delay_by_AIF_correct', 'AIF_delay_corrected');
+        save(Mat_File_Ht, 'Est_IRF', 'est_delay_by_AIF_correct', 'AIF_delay_corrected');
         
     end
     
@@ -213,46 +213,45 @@ if(exist(Mat_File_Perfusion_Parameters,'file') && ~Force_RealData_Calc)
 else
     
     if Parallel_Real_Data_Est
-        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec_vec, sigma_seconds_single_gauss_vec, ...
-          Amp_single_gauss_vec, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, Vb_vec, ...
-          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Parallel_Params_Est_Real_Data(Sim_Struct, Est_ht, Ct, AIF_delay_corrected, idx_fig );
+        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec, sigma_seconds_single_gauss, ...
+          Amp_single_gauss, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, Vb_vec, ...
+          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Parallel_Params_Est_Real_Data(Sim_Struct, Est_IRF, Ct, AIF_delay_corrected, idx_fig );
     else
         
-        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec_vec, sigma_seconds_single_gauss_vec, ...
-          Amp_single_gauss_vec, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, Vb_vec, ...
-          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Serial_Params_Est_Real_Data(Sim_Struct, Est_ht, Ct, AIF_delay_corrected, idx_fig );
+        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec, sigma_seconds_single_gauss, ...
+          Amp_single_gauss, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, Vb_vec, ...
+          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Serial_Params_Est_Real_Data(Sim_Struct, Est_IRF, Ct, AIF_delay_corrected, idx_fig );
        
     end
     
-    save(Mat_File_Perfusion_Parameters,'Flow_vec','t_delay_single_gauss_sec_vec','sigma_seconds_single_gauss_vec',...
-        'Amp_single_gauss_vec','Ktrans_vec','Vb_vec','Ve_vec','MTT_vec','Ktrans_Patlak_vec','Vb_Patlak_vec',...
+    save(Mat_File_Perfusion_Parameters,'Flow_vec','t_delay_single_gauss_sec','sigma_seconds_single_gauss',...
+        'Amp_single_gauss','Ktrans_vec','Vb_vec','Ve_vec','MTT_vec','Ktrans_Patlak_vec','Vb_Patlak_vec',...
         'MTT_Patlak_vec','Delay_sec_by_Max_Val','double_gaussian_param_vec','fitted_gaussian','fitted_double_gaussian');
     
 end
 
 % Calculate RMS of convolution result comparing to Ct(t)
-RMS_params              = sqrt( sum( (fitted_gaussian        - Est_ht).^2 ,2) );
-RMS_params_double_gauss = sqrt( sum( (fitted_double_gaussian - Est_ht).^2 ,2) );
+RMS_params              = sqrt( sum( (fitted_gaussian        - Est_IRF).^2 ,2) );
+RMS_params_double_gauss = sqrt( sum( (fitted_double_gaussian - Est_IRF).^2 ,2) );
 
 %% Filter AIF through kernel
 
 % Filter the AIF with the estimated ht
 %conv_result_ht       = filter(Est_ht,1,AIF);
-conv_result_ht       = filter(AIF*min_interval,1,Est_ht,[],2);
+conv_result_IRF       = filter(AIF*min_interval,1,Est_IRF,[],2);
 
 % Filter the AIF with the gaussian kernel
 %conv_result_gaussian = filter(calculated_gaussian*min_interval,1,AIF);
 conv_result_gaussian        = filter(AIF*min_interval,1,fitted_gaussian,[],2);
 conv_result_double_gaussian = filter(AIF*min_interval,1,fitted_double_gaussian,[],2);
 
-
 % Zero negative values
-conv_result_ht(conv_result_ht<0)             = 0;
-conv_result_gaussian(conv_result_gaussian<0) = 0;
+conv_result_IRF(conv_result_IRF<0)                         = 0;
+conv_result_gaussian(conv_result_gaussian<0)               = 0;
 conv_result_double_gaussian(conv_result_double_gaussian<0) = 0;
 
 % Calculate RMS of convolution results comparing to Ct(t)
-RMS_ht           = sqrt( sum( (Ct - conv_result_ht).^2 , 2) );
+RMS_ht           = sqrt( sum( (Ct - conv_result_IRF).^2 , 2) );
 RMS_gauss        = sqrt( sum( (Ct - conv_result_gaussian).^2, 2) );
 RMS_double_gauss = sqrt( sum( (Ct - conv_result_double_gaussian).^2, 2) );
 
