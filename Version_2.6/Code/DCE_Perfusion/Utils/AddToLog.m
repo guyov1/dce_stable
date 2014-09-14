@@ -28,5 +28,6 @@ end
 % Delete old file
 delete(LogFN);
 pause(0.5);
+
 % Save new file
 save(LogFN,'Log');

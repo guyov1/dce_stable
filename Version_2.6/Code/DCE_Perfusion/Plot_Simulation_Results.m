@@ -1,5 +1,6 @@
 function [ idx_fig ] = Plot_Simulation_Results( Sim_Struct,Verbosity, idx_fig)
 
+
 % Take from struct variables used in local function
 plot_error_results_flag           = Sim_Struct.plot_error_results_flag;
 iterate_SNR                       = Sim_Struct.iterate_SNR;
@@ -18,6 +19,76 @@ iterate_AIF_delay                 = Sim_Struct.iterate_AIF_delay;
 iterate_uniformly                 = Sim_Struct.iterate_uniformly;
 results                           = Sim_Struct.results;
 Filter_Est_Chosen                 = Sim_Struct.Filter_Est_Chosen;
+F_low                             = Sim_Struct.F_low;
+E_low                             = Sim_Struct.E_low;
+Vb_low                            = Sim_Struct.Vb_low;
+Ve_low                            = Sim_Struct.Ve_low;
+F_max                             = Sim_Struct.F_max;
+E_max                             = Sim_Struct.E_max;
+Vb_max                            = Sim_Struct.Vb_max;
+Ve_max                            = Sim_Struct.Ve_max;
+
+
+%load('Results_1000_Iterations_No_Delay.mat');
+%load('Results_1000_Iterations_With_Delay_No_Correction.mat');
+%load('Results_1000_Iterations_With_Delay_And_Correction.mat');
+%load('Results_1000_Iterations_No_Delay_No_Correction_2_sec_interval_6_min_total.mat');
+%load('Results_1000_Iterations_No_Delay_No_Correction_4_sec_interval_6_min_total.mat');
+%load('Results_1000_Iterations_No_Delay_No_Correction_6_sec_interval_6_min_total.mat');
+%load('Results_1000_Iterations_No_Delay_No_Correction_2_sec_interval_20_min_total.mat');
+%load('Results_1000_Iterations_No_Delay_No_Correction_6_sec_interval_20_min_total.mat');
+
+% Specify file name according to simulation parameters
+num_iterations                  = Sim_Struct.num_iterations;
+total_sim_time_min              = Sim_Struct.total_sim_time_min;
+sec_interval                    = Sim_Struct.sec_interval;
+AIF_delay_low                   = Sim_Struct.AIF_delay_low;
+AIF_delay_max                   = Sim_Struct.AIF_delay_max;
+
+Use_Cyclic_Conv_4_ht_est        = Sim_Struct.Use_Cyclic_Conv_4_ht_est;
+Upsampling_resolution_Sec       = Sim_Struct.Upsampling_resolution_Sec;
+Correct_estimation_due_to_delay = Sim_Struct.Correct_estimation_due_to_delay;
+Simple_AIF_Delay_Correct        = Sim_Struct.Simple_AIF_Delay_Correct;
+Filter_Est_Chosen               = Sim_Struct.Filter_Est_Chosen;
+Add_Randomly_AIF_Delay          = Sim_Struct.Add_Randomly_AIF_Delay;
+
+if Add_Randomly_AIF_Delay
+    Delay_Used  = 'With_Delay';
+    Delay_Range = ['_' num2str(AIF_delay_low) '_to_' num2str(AIF_delay_max) '_resolution_' num2str(Upsampling_resolution_Sec) '_'];
+else
+    Delay_Used  = 'No_Delay';
+    Delay_Range = '';
+end
+
+Delay_String = [Delay_Used Delay_Range];
+
+if     ( Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+    Correction_Type = 'Cyclic';    
+elseif ( Use_Cyclic_Conv_4_ht_est &&  Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+    Correction_Type = 'Cyclic_And_Simple';
+elseif ( Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct &&  Correct_estimation_due_to_delay )
+    Correction_Type = 'Cyclic_And_BiExp';
+elseif (~Use_Cyclic_Conv_4_ht_est &&  Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+    Correction_Type = 'Simple';
+elseif (~Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct &&  Correct_estimation_due_to_delay )
+    Correction_Type = 'BiExp';
+elseif (~Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+    Correction_Type = 'No';
+else
+    error('-E- Cant find AIF delay legal combination!');
+end
+
+Mat_File_Name = ['Results_' num2str(num_iterations) '_Iterations_' Delay_String ...
+                 '_' Correction_Type '_Correction_' num2str(sec_interval(1)) ...
+                 '_sec_interval_' num2str(total_sim_time_min) '_min_total_' Filter_Est_Chosen '.mat'];
+
+save(Mat_File_Name,'plot_error_results_flag',...
+     'iterate_SNR','iterate_sec_interval','Ignore_Gaussian_Calculation','iterate_gaussian_sigma',...
+     'iterate_gaussian_time_delay','iterate_gaussian_amplitude','iterate_F_larsson',...
+     'iterate_Vb_larsson','iterate_E_larsson','Vb_single','E_single',...
+     'F_single','iterate_AIF_delay','iterate_uniformly','results',...
+     'Filter_Est_Chosen','F_low','E_low','Vb_low','Ve_low',...
+     'F_max','E_max','Vb_max','Ve_max');
 
 font_size                         = 20; % For plots
 font_size_axis                    = 12;
@@ -162,7 +233,7 @@ if (plot_error_results_flag)
     abs_larss_error_E               = results(98,:);
     abs_larss_error_Ve_larss        = results(99,:);
     
-
+    
     if (iterate_SNR)
         
         if ~Ignore_Gaussian_Calculation
@@ -414,7 +485,7 @@ if (plot_error_results_flag)
     if (iterate_F_larsson)
         
         fig_num = figure;
-
+        
         subplot(2,1,1);
         
         %plot(real_sigma_vec,error_percent_sigma);
@@ -451,11 +522,11 @@ if (plot_error_results_flag)
         
         hr = refline(1); % y=x reference line
         set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
-        axis equal;   
+        axis equal;
         xlim([0 150]);  %Sets x axis limits
         ylim([0 150]);   %Sets y axis limits
         
-
+        
         title_string = sprintf('est. Flow vs. original Flow. Vb=%d, E=%.2f',Vb_single,E_single);
         title(title_string,'FontSize',font_size,'FontWeight','bold');
         xlabel('Original Flow','FontSize',font_size,'FontWeight','bold');
@@ -632,8 +703,8 @@ if (plot_error_results_flag)
             'String',{...
             ['Estimation Error Using ' Filter_Est_Chosen ' :'],...
             '',...
-            ['F                   - Err. %         = ' num2str(mean(error_percent_F               ),'%5.2f') ' +- ' num2str(std(error_percent_F                ),'%5.2f') '        [mL/100g/min]'],...    
-            ['Ktrans           - Err. %         = ' num2str(mean(error_percent_Ktrans_2CXM     ),'%5.2f') ' +- ' num2str(std(error_percent_Ktrans_2CXM                ),'%5.2f') '        [mL/100g/min]'],...        
+            ['F                   - Err. %         = ' num2str(mean(error_percent_F               ),'%5.2f') ' +- ' num2str(std(error_percent_F                ),'%5.2f') '        [mL/100g/min]'],...
+            ['Ktrans           - Err. %         = ' num2str(mean(error_percent_Ktrans_2CXM     ),'%5.2f') ' +- ' num2str(std(error_percent_Ktrans_2CXM                ),'%5.2f') '        [mL/100g/min]'],...
             ['Vp                 - Err. %         = ' num2str(mean(error_percent_Vb_2CXM          ),'%5.2f') ' +- ' num2str(std(error_percent_Vb_2CXM          ),'%5.2f') '        [mL/100g]'],...
             ['Ve                 - Err. %         = ' num2str(mean(error_percent_Ve_2CXM          ),'%5.2f') ' +- ' num2str(std(error_percent_Ve_2CXM          ),'%5.2f') '        [mL/100g]'],...
             ['F Sourbron   - Err. %         = ' num2str(mean(error_percent_Sourbron_F      ),'%5.2f') ' +- ' num2str(std(error_percent_Sourbron_F       ),'%5.2f') '        [mL/100g/min]'],...
@@ -653,13 +724,190 @@ if (plot_error_results_flag)
         [idx_fig] = Print2Pdf(fig_num, idx_fig, 'Estimation_Error_Summary.png', './Run_Output/',...
             'Estimatation Error Summary - Uniform Generated Parameters', 'EstimationErrorSummary');
         
+        % --------------------------------------------
+        % Scatter plots for parameters
+        % --------------------------------------------
+        
+        % Boundaries for F, Ktrans, Vb, Ve
+        
+        minRealF                         = 0;
+        maxRealF                         = Inf;
+        minRealKtrans                    = 0;
+        maxRealKtrans                    = Inf;
+        minRealVb                        = 0;
+        maxRealVb                        = Inf;
+        minRealVe                        = 0;
+        maxRealVe                        = Inf;
+        minRealE                         = 0.05;
+        maxRealE                         = 0.5;
+        
+        numBins                          = 15;
+        
+        real_F                           = real_larsson_F_vec;
+        est_F                            = est_larsson_F_vec;
+        real_Ktrans                      = real_larsson_Ktrans_2CXM_vec;
+        est_Ktrans                       = est_larsson_Ktrans_2CXM_vec;
+        real_Vb                          = real_larsson_Vb_2CXM_vec;
+        est_Vb                           = est_larsson_Vb_2CXM_vec;
+        real_Ve                          = real_larsson_Ve_2CXM_vec;
+        est_Ve                           = est_larsson_Ve_2CXM_vec;
+        real_E                           = real_larsson_E_vec;
+        est_E                            = est_larsson_E_vec;
+        
+        minVec                           = [minRealF minRealKtrans minRealVb minRealVe minRealE];
+        maxVec                           = [maxRealF maxRealKtrans maxRealVb maxRealVe maxRealE];
+        realVec                          = [real_F ;real_Ktrans ;real_Vb ;real_Ve; real_E];
+        estVec                           = [est_F ;est_Ktrans ;est_Vb ;est_Ve; est_E];
+        
+        
+        generationMinVal                 = [F_low E_low*F_low Vb_low Ve_low E_low ];
+        generationMaxVal                 = [F_max E_max*F_max Vb_max Ve_max E_max ];
+        
+        % ----------  F    -----------
+        param_name                       = 'Flow';
+        fig_num                          = figure;
+        [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name);
+        %h1                               = scatter(real_bins, mean_bins,'g*');
+        h1                               = errorbar(real_bins,mean_bins,std_bins,'b');
+        
+        hr = refline(1); % y=x reference line
+        set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
+
+        title_string = sprintf(['Est. Vs. Original ' param_name]);
+        title(title_string,'FontSize',font_size,'FontWeight','bold');
+        xlabel(['Original ' param_name]);
+        ylabel(['Estimated ' param_name]);
+        legend([h1], 'Spline 2nd. Uniform Generation.');
+        % Scale X and Y the same
+        limx = get(gca, 'XLim');
+        limy = get(gca, 'YLim'); 
+        limBoth = [min([limx limy]) max([limx limy])]; 
+        set(gca, 'XLim', limBoth);
+        set(gca, 'YLim', limBoth);
+        
+        
+        % Print result to PDF
+        [idx_fig] = Print2Pdf(fig_num, idx_fig, ['Est_' param_name '_Uniform.png'], './Run_Output/',...
+            [param_name ' Estimation - Uniform Generation'], ['Est' param_name]);
+        
+        % ----------  Ktrans    -----------
+        param_name                       = 'Ktrans';
+        fig_num                          = figure;
+        [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name);
+        %h1                               = scatter(real_bins, mean_bins,'g*');
+        h1                               = errorbar(real_bins,mean_bins,std_bins,'b');
+        
+        hr                    = refline(1); % y=x reference line
+        set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
+        
+        title_string = sprintf(['Est. Vs. Original ' param_name]);
+        title(title_string,'FontSize',font_size,'FontWeight','bold');
+        xlabel(['Original ' param_name]);
+        ylabel(['Estimated ' param_name]);
+        legend([h1], 'Spline 2nd. Uniform Generation.');
+        % Scale X and Y the same
+        limx = get(gca, 'XLim');
+        limy = get(gca, 'YLim');
+        limBoth = [min([limx limy]) max([limx limy])];
+        set(gca, 'XLim', limBoth);
+        set(gca, 'YLim', limBoth);
+        
+        % Print result to PDF
+        [idx_fig] = Print2Pdf(fig_num, idx_fig, ['Est_' param_name '_Uniform.png'], './Run_Output/',...
+            [param_name ' Estimation - Uniform Generation'], ['Est' param_name]);
+        
+        % Find bad indices for estimation wose than 100%
+        %         good_idx = find(error_percent_Ktrans_2CXM<=100);
+        %         bad_idx  = find(error_percent_Ktrans_2CXM>100);
+        %         error_percent_Ktrans_2CXM(bad_idx)
+        %         real_larsson_Ktrans_2CXM_vec(bad_idx)
+        %         real_larsson_F_vec(bad_idx)
+        %         real_larsson_Ve_2CXM_vec(bad_idx)
+        %         real_larsson_Vb_2CXM_vec(bad_idx)
+        %         real_larsson_E_vec(bad_idx)
+        
+        % ----------  Vb    -----------
+        param_name                       = 'Vb';
+        fig_num                          = figure;
+        [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name);
+        %h1                               = scatter(real_bins, mean_bins,'g*');
+        h1                               = errorbar(real_bins,mean_bins,std_bins,'b');
+        
+        hr = refline(1); % y=x reference line
+        set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
+        
+        title_string = sprintf(['Est. Vs. Original ' param_name]);
+        title(title_string,'FontSize',font_size,'FontWeight','bold');
+        xlabel(['Original ' param_name]);
+        ylabel(['Estimated ' param_name]);
+        legend([h1], 'Spline 2nd. Uniform Generation.');
+        % Scale X and Y the same
+        limx = get(gca, 'XLim');
+        limy = get(gca, 'YLim');
+        limBoth = [min([limx limy]) max([limx limy])];
+        set(gca, 'XLim', limBoth);
+        set(gca, 'YLim', limBoth);
+        
+        % Print result to PDF
+        [idx_fig] = Print2Pdf(fig_num, idx_fig, ['Est_' param_name '_Uniform.png'], './Run_Output/',...
+            [param_name ' Estimation - Uniform Generation'], ['Est' param_name]);
+        
+        % ----------  Ve    -----------
+        param_name                       = 'Ve';
+        fig_num                          = figure;
+        [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name);
+        %h1                               = scatter(real_bins, mean_bins,'g*');
+        h1                               = errorbar(real_bins,mean_bins,std_bins,'b');
+        
+        hr = refline(1); % y=x reference line
+        set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
+        
+        title_string = sprintf(['Est. Vs. Original ' param_name]);
+        title(title_string,'FontSize',font_size,'FontWeight','bold');
+        xlabel(['Original ' param_name]);
+        ylabel(['Estimated ' param_name]);
+        legend([h1], 'Spline 2nd. Uniform Generation.');
+        % Scale X and Y the same
+        limx = get(gca, 'XLim');
+        limy = get(gca, 'YLim');
+        limBoth = [min([limx limy]) max([limx limy])];
+        set(gca, 'XLim', limBoth);
+        set(gca, 'YLim', limBoth);
+        
+        % Print result to PDF
+        [idx_fig] = Print2Pdf(fig_num, idx_fig, ['Est_' param_name '_Uniform.png'], './Run_Output/',...
+            [param_name ' Estimation - Uniform Generation'], ['Est' param_name]);
+        
+        % ----------  E    -----------
+        param_name                       = 'E';
+        fig_num                          = figure;
+        [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name);
+        %h1                               = scatter(real_bins, mean_bins,'g*');
+        h1                               = errorbar(real_bins,mean_bins,std_bins,'b');
+        
+        hr = refline(1); % y=x reference line
+        set(hr,'Color','k','LineStyle','--','LineWidth',1.5);
+        
+        title_string = sprintf(['Est. Vs. Original ' param_name]);
+        title(title_string,'FontSize',font_size,'FontWeight','bold');
+        xlabel(['Original ' param_name]);
+        ylabel(['Estimated ' param_name]);
+        legend([h1], 'Spline 2nd. Uniform Generation.');
+        % Scale X and Y the same
+        limx = get(gca, 'XLim');
+        limy = get(gca, 'YLim');
+        limBoth = [min([limx limy]) max([limx limy])];
+        set(gca, 'XLim', limBoth);
+        set(gca, 'YLim', limBoth);
+        
+        % Print result to PDF
+        [idx_fig] = Print2Pdf(fig_num, idx_fig, ['Est_' param_name '_Uniform.png'], './Run_Output/',...
+            [param_name ' Estimation - Uniform Generation'], ['Est' param_name]);
+        
     end
     
     
 end
 
-
-% Update return values
-Sim_Struct.idx_fig = idx_fig;
 
 end

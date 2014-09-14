@@ -162,7 +162,7 @@ Chosen_AIF = AIF_estimated_ICA;
 %Chosen_AIF = transpose(smooth(AIF_estimated_ICA));
 
 % Scale AIF as necessary
-Chosen_AIF = Sim_Struct.AIF_Scaling_Factor * Chosen_AIF;
+Chosen_AIF = double( Sim_Struct.AIF_Scaling_Factor * Chosen_AIF );
 
 [ Flow_Larsson, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, Est_IRF, fitted_gaussian, conv_result_IRF, conv_result_gaussian, RMS_ht, RMS_gauss, RMS_params,...
     calculated_double_gaussian, conv_result_double_gaussian, double_gauss_params, RMS_double_gauss, RMS_params_double_gauss, Ktrans, Vb, Ve, MTT, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = ...

@@ -54,11 +54,21 @@ if ~Sim_Struct.FORCE_SERIAL
     parfor iter_num = 1:num_iterations
         [ Sim_AIF_high_res(:,iter_num), Sim_AIF_delayed_high_res(:,iter_num), Sim_AIF(:,iter_num), Sim_AIF_delayed(:,iter_num)] ...
             = Create_Wanted_AIFs(additional_AIF_delay_min(iter_num), time_vec_minutes_high_res,A1,sig1,T1,A2,sig2,T2,alpha,beta,s,tau, r_factor, Upsamp_factor );
+        
+        if ( mod(iter_num,100) == 0 )
+            display(sprintf('-I- Finished creating 100 AIFs...'));
+        end
+        
     end
 else
     for iter_num = 1:num_iterations
         [ Sim_AIF_high_res(:,iter_num), Sim_AIF_delayed_high_res(:,iter_num), Sim_AIF(:,iter_num), Sim_AIF_delayed(:,iter_num)] ...
             = Create_Wanted_AIFs(additional_AIF_delay_min(iter_num), time_vec_minutes_high_res,A1,sig1,T1,A2,sig2,T2,alpha,beta,s,tau, r_factor, Upsamp_factor );
+        
+        if ( mod(iter_num,100) == 0 )
+            display(sprintf('-I- Finished creating %d AIFs...',iter_num));
+        end
+        
     end
 end
 

@@ -17,6 +17,10 @@ Sim_Struct = Simulation_Init(Sim_Struct, Verbosity);
 % Set parallel processing if needed
 Set_Parallel_Processing(Sim_Struct, Verbosity);
 
+if Sim_Struct.RealData_Flag
+   error('-E- Running simulation but RealData_Flag is set to TRUE...'); 
+end
+
 %% AIFs creation for all iterations
 Sim_Struct = Create_AIFs(Sim_Struct, Verbosity);
 
@@ -90,3 +94,4 @@ MakeReport_func(Local_Path, Log_Path);
 if (Sim_Struct.num_iterations == 1)
     close all;
 end
+close all;

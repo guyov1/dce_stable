@@ -70,21 +70,26 @@ if Simple_AIF_Delay_Correct
                     Regularization_Methods_Simulation( Sim_Ct_larss_Regul, Sim_Ct_larss_Regul_noise, Conv_Matrix, Conv_Matrix_no_noise, time_vec_minutes, lambda_vec_larss, normalize, min_interval, B_mat, B_PCA, plot_L_Curve, idx_fig, filter_type, Derivative_Time_Devision, plot_flag, RealData_Flag );
             else
                 
-                [ridge_regression_result, b_spline_result, b_spline_result_1st_deriv, b_spline_result_2nd_deriv, b_PCA_result_1st_deriv, b_PCA_result_2nd_deriv, idx_fig]...
+                [~, ~, ~, Final_Filter_Estimation_Larss, ~, ~, ~, idx_fig]...
                     = Regularization_Methods_Simulation(Sim_Ct_larss_Regul, Sim_Ct_larss_Regul_noise,Conv_X_shifted,Conv_X_no_noise,time_vec_minutes,...
-                    lambda_vec_larss, normalize, min_interval, B_mat, plot_L_Curve, idx_fig , 'Larss' , Derivative_Time_Devision, plot_flag, RealData_Flag );
-                
-                [ Final_Filter_Estimation_Larss ] = Choose_Needed_Ht( Filter_Est_Chosen, est_larss_filter_Wiener_noise, ridge_regression_result, b_spline_result, b_spline_result_1st_deriv, b_spline_result_2nd_deriv, b_PCA_larss_result, b_PCA_result_1st_deriv, b_PCA_result_2nd_deriv);
+                    lambda_vec_larss, normalize, min_interval, B_mat, B_PCA, plot_L_Curve, idx_fig , 'Larss' , Derivative_Time_Devision, plot_flag, RealData_Flag );
+                    
             end
-            
+        else
+            est_simple_delay                 = 0; % If the maximum is the first delay, there is no delay
+            Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
             
         end
     else
-        est_simple_delay = 0; % If the maximum is the first delay, there is no delay
+        
+        est_simple_delay                 = 0; % If the maximum is the first delay, there is no delay
+        Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
+        
     end
     
     est_delay_by_AIF_correct = est_simple_delay;
     
+        
     return;
     
     % ---------------------------------------------------------------------

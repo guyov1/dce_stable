@@ -5,15 +5,15 @@ if ~strcmp(Verbosity,'None')
 end
 
 % Real Data parameters
-Sim_Struct.RealData_Flag                 = true;  % Treat data as it were real one
-Sim_Struct.Parallel_Real_Data_Est        = true;  % Parallel the for loop in real data estimation
-Sim_Struct.Force_RealData_Calc           = true;  % Force the calculation of real data even if calculated bafore
+Sim_Struct.RealData_Flag                 = false;  % Treat data as it were real one
+Sim_Struct.Parallel_Real_Data_Est        = true;   % Parallel the for loop in real data estimation
+Sim_Struct.Force_RealData_Calc           = true;   % Force the calculation of real data even if calculated bafore
 Sim_Struct.USE_ONE_GAUSSIAN              = false;
 Sim_Struct.USE_DOUBLE_GAUSSIAN           = false;
 Sim_Struct.USE_WIENER                    = false;
 Sim_Struct.USE_TICHONOV                  = true;
-Sim_Struct.Correct_PVE                   = true;  % Correct Partial Volume Effect for AIF
-Sim_Struct.Threshold_Norm_Maps           = true;  % Threshold maps before normalizeing them to 0-1 (avoid saturation effects)
+Sim_Struct.Correct_PVE                   = true;   % Correct Partial Volume Effect for AIF
+Sim_Struct.Threshold_Norm_Maps           = false;  % Threshold maps before normalizeing them to 0-1 (avoid saturation effects)
 Sim_Struct.Threshold_Val                 = 0.026768 * 242.9221;
 
 % Force serial and not parallel
@@ -21,7 +21,7 @@ Sim_Struct.FORCE_SERIAL                  = false;
 Sim_Struct.FORCE_MAIN_LOOP_SERIAL        = false;
 
 % Set number of iterations for simulation
-Sim_Struct.num_iterations                = 50; %15
+Sim_Struct.num_iterations                = 1000; %15
 % Avoid memory overhead if there are too many iteratins
 if (Sim_Struct.num_iterations > 40)
     Sim_Struct.FORCE_SERIAL                  = true;
@@ -44,7 +44,7 @@ Sim_Struct.iterate_E_larsson             = 0;
 Sim_Struct.iterate_Ve_larsson            = 0;
 Sim_Struct.iterate_AIF_delay             = 0;
 Sim_Struct.iterate_uniformly             = 1; % Uniformly generate parameters data
-Sim_Struct.Add_Randomly_AIF_Delay        = 0;
+Sim_Struct.Add_Randomly_AIF_Delay        = 1;
 
 % Choose which Patlak estimation to take
 % Possible - 1. "Specified Points" 2. "All Points" 3. "Weighted Points"
@@ -53,7 +53,7 @@ Sim_Struct.Patlak_Est_Type               = 'Specified Points';
 % Possible: 'Wiener', 'Ridge', 'Spline', 'Spline_1st', 'Spline_2nd', 'PCA', 'PCA_1st', 'PCA_2nd'
 Sim_Struct.Filter_Est_Chosen             = 'Spline_2nd';
 % Number of iterations for PCA basis creation
-Sim_Struct.Num_iterations_PCA            = 10000; 
+Sim_Struct.Num_iterations_PCA            = 1000; % 100,000
 % Use the adjusted Larsson filter
 Sim_Struct.Adjusted_Larsson_Model        = true;
 % Choose whether to plot L curve
@@ -95,8 +95,8 @@ Sim_Struct.knots                    = Sim_Struct.time_vec_minutes(1:Sim_Struct.k
 %% ------------------- AIF Parameters ------------------------------------
 
 % Add randomly delay to the AIF
-Sim_Struct.AIF_delay_low                 = -1;
-Sim_Struct.AIF_delay_max                 = +20;
+Sim_Struct.AIF_delay_low                 = -0.0;
+Sim_Struct.AIF_delay_max                 = +20.0;
 
 % Delay parameters
 Sim_Struct.additional_AIF_delay_sec     = +0.0; % Delay added to AIF before filtering
@@ -121,11 +121,12 @@ Sim_Struct.s        = 38.078;
 Sim_Struct.tau      = 0.483;
 
 % Apply cyclic convolution to compensate for AIF delay
-Sim_Struct.Use_Cyclic_Conv_4_ht_est               = false;      % Use cyclic de-convolution to correct for delay
+Sim_Struct.Use_Cyclic_Conv_4_ht_est               = false;       % Use cyclic de-convolution to correct for delay
 Sim_Struct.Cyclic_End_Padding                     = true;       % Pad at the beginning or end
 Sim_Struct.Use_Upsampling_and_Cyclic              = false;      % Use cyclic de-convolution to correct for delay + upsampling
 Sim_Struct.Use_Upsampling_Delay_Comp              = false;      % Upsample Ct(t) and AIF(t) to try and predict time shift in AIF
-Sim_Struct.Upsampling_resolution                  = 0.5 / 60;   % Set the upsampling target
+Sim_Struct.Upsampling_resolution_Sec              = 0.1;        % Set the upsampling target
+Sim_Struct.Upsampling_resolution                  = Sim_Struct.Upsampling_resolution_Sec / 60;   % Set the upsampling target
 Sim_Struct.Correct_estimation_due_to_delay        = false;      % Try to correct for delay
 Sim_Struct.Max_Time_Delay                         = Sim_Struct.AIF_delay_max;  % Set the maximal possible time delay in seconds for correction
 Sim_Struct.Min_Time_Delay                         = Sim_Struct.AIF_delay_low;  % Set the minimal possible time delay in seconds for correction

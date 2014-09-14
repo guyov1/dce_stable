@@ -113,10 +113,9 @@ end
 % Remove Zeros/NaNs/Infs caused because of division by 0
 nan_indices           = find(isnan(Y_vec_Vb));
 inf_indices           = find(~isfinite(Y_vec_Vb));
-Y_vec_Vb(nan_indices) = [];
-Y_vec_Vb(inf_indices) = [];
-X_vec(nan_indices)    = [];
-X_vec(inf_indices)    = [];
+
+Y_vec_Vb(union(nan_indices,inf_indices)) = [];
+X_vec(union(nan_indices,inf_indices))    = [];
 
 % Fine straight line coefficent
 [linear_params_spec_points]    = polyfit(X_vec,Y_vec_Vb,1);
@@ -154,10 +153,8 @@ Y_vec_Vb              = CTC(:) ./ AIF;                           %[mL/100g]
 X_vec                 = cumtrapz(time_vec_minutes,AIF) ./ AIF; %[min]
 nan_indices           = find(isnan(Y_vec_Vb));
 inf_indices           = find(~isfinite(Y_vec_Vb));
-Y_vec_Vb(nan_indices) = [];
-Y_vec_Vb(inf_indices) = [];
-X_vec(nan_indices)    = [];
-X_vec(inf_indices)    = [];
+Y_vec_Vb(union(nan_indices,inf_indices)) = [];
+X_vec(union(nan_indices,inf_indices))    = [];
 
 % Fine straight line coefficent
 [linear_params_all_points]    = polyfit(X_vec,Y_vec_Vb,1);

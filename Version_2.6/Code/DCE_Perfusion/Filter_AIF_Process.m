@@ -38,6 +38,12 @@ if ~Sim_Struct.FORCE_SERIAL
             noise_to_add_larss(:,i,j) = noise_sigma_larss * randn(size(Sim_Ct_larss_kernel(:,i,j)));
             
         end
+        
+        if ( mod(i,100) == 0 )
+            display(sprintf('-I- Finished filtering 100 AIFs...'));
+        end
+        
+        
     end
 else
     for i = 1:num_iterations
@@ -65,6 +71,11 @@ else
             noise_to_add_larss(:,i,j) = noise_sigma_larss * randn(size(Sim_Ct_larss_kernel(:,i,j)));
             
         end
+        
+        if ( mod(i,100) == 0 )
+            display(sprintf('-I- Finished filtering %d AIFs...',i));
+        end
+        
     end
 end
 
