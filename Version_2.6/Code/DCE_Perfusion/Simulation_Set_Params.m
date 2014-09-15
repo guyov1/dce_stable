@@ -96,7 +96,7 @@ Sim_Struct.knots                    = Sim_Struct.time_vec_minutes(1:Sim_Struct.k
 
 % Add randomly delay to the AIF
 Sim_Struct.AIF_delay_low                 = -0.0;
-Sim_Struct.AIF_delay_max                 = +20.0;
+Sim_Struct.AIF_delay_max                 = +90.0;
 
 % Delay parameters
 Sim_Struct.additional_AIF_delay_sec     = +0.0; % Delay added to AIF before filtering

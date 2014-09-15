@@ -14,14 +14,42 @@ BAT_y_scale         = 2;
 
 num_data            = 3;
 
+% Options
+% '-'  - Solid line (default)
+% '--' - Dashed line
+% ':'  - Dotted line
+% '-.' - Dash-dot line
+% '+'	Plus sign
+% 'o'	Circle
+% '*'	Asterisk
+% '.'	Point
+% 'x'	Cross
+% 'square' or 's' Square
+% 'diamond' or 'd'Diamond
+% '^'	Upward-pointing triangle
+% 'v'	Downward-pointing triangle
+% '>'	Right-pointing triangle
+% '<'	Left-pointing triangle
+% 'pentagram' or 'p' Five-pointed star (pentagram)
+% 'hexagram' or 'h'  Six-pointed star (hexagram)
+% r	Red
+% g	Green
+% b	Blue
+% c	Cyan
+% m	Magenta
+% y	Yellow
+% k	Black
+% w	White
+
 graph_format_1      = ':gs';
 graph_format_2      = '--b+';
 graph_format_3      = '-.c*';
 graph_format_4      = '-ro';
-DataPath_1          = 'Results_1000_Iterations_With_Delay_No_Correction_2_sec_interval_6_min_total_Spline_2nd.mat';
-DataPath_2          = 'Results_1000_Iterations_With_Delay_Cyclic_Correction_2_sec_interval_6_min_total_Spline_2nd.mat';
-DataPath_3          = 'Results_1000_Iterations_With_Delay_And_Correction_2_sec_interval_6_min_total_Spline_2nd.mat';
-DataPath_4          = 'Results_1000_Iterations_With_Delay_And_Correction_2_sec_interval_6_min_total_Spline_2nd.mat';
+Base_Path           = './Old_Runs/';
+DataPath_1          = [Base_Path 'Results_1000_Iterations_With_Delay_No_Correction_2_sec_interval_6_min_total_Spline_2nd.mat'];
+DataPath_2          = [Base_Path 'Results_1000_Iterations_With_Delay_Cyclic_Correction_2_sec_interval_6_min_total_Spline_2nd.mat'];
+DataPath_3          = [Base_Path 'Results_1000_Iterations_With_Delay_And_Correction_2_sec_interval_6_min_total_Spline_2nd.mat'];
+DataPath_4          = [Base_Path 'Results_1000_Iterations_With_Delay_And_Correction_2_sec_interval_6_min_total_Spline_2nd.mat'];
 %DataPath_1          = 'Results_1000_Iterations_No_Delay_No_Correction_2_sec_interval_6_min_total.mat';
 %DataPath_2          = 'Results_1000_Iterations_No_Delay_No_Correction_4_sec_interval_6_min_total.mat';
 %DataPath_3          = 'Results_1000_Iterations_No_Delay_No_Correction_6_sec_interval_6_min_total.mat';

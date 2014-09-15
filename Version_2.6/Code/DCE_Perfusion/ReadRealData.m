@@ -3,7 +3,7 @@ function [Subject_name, Subject_Path, WM_mask_absolute_path, Art_Mask, Vein_Mask
 %   Detailed explanation goes here
 
 Subject_name          = 'ReYe';
-Subject_Path          = '\\FMRI-t9\users\Moran\DCE\HTR_STROKE\01_REMEZ_YECHEZKEL\Study20140615_114415\DCE-HTR\ReYe_20140615_2sec';
+Subject_Path          = '\\fmri-t9\users\Moran\DCE\HTR_STROKE\01_REMEZ_YECHEZKEL\Study20140615_114415';
 WM_mask_absolute_path = [Subject_Path  '\RefT1_WM_830.nii'];
 %Art_Mask              = [Subject_Path  '\ManualArtMask.nii'];
 Art_Mask              = [Subject_Path  '\InspectedRepVox.nii'];
