@@ -1,5 +1,5 @@
 function [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec_vec, sigma_seconds_single_gauss_vec, ...
-           Amp_single_gauss_vec, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, Vb_vec, ...
+           Amp_single_gauss_vec, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, E_vec, Vb_vec, ...
            Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Parallel_Params_Est_Real_Data(Sim_Struct, Est_ht, Ct, AIF, idx_fig )
 
 display('--------------------------------------------------------');
@@ -40,6 +40,7 @@ fitted_double_gaussian         = zeros(num_voxels,num_time_stamps);
 Flow_vec                       = zeros(1,num_voxels);
 Delay_sec_by_Max_Val           = zeros(1,num_voxels);
 Ktrans_vec                     = zeros(1,num_voxels);
+E_vec                          = zeros(1,num_voxels);
 Vb_vec                         = zeros(1,num_voxels);
 Ve_vec                         = zeros(1,num_voxels);
 MTT_vec                        = zeros(1,num_voxels);
@@ -121,6 +122,7 @@ parfor j=1:num_voxels
         
         % Assigning two compartment parameters estimation
         Vb_vec(j)         = est_params_Larsson_noise(1);
+        E_vec(j)          = est_params_Larsson_noise(2);
         Ktrans_vec(j)     = est_params_Larsson_noise(2)* Flow_vec(j);
         Ve_vec(j)         = est_params_Larsson_noise(3);
         % Estimate MTT
