@@ -22,7 +22,7 @@ function varargout = DSCMainGUI(varargin)
 
 % Edit the above text to modify the response to help DSCMainGUI
 
-% Last Modified by GUIDE v2.5 21-Aug-2014 12:10:22
+% Last Modified by GUIDE v2.5 09-Sep-2014 14:20:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -174,7 +174,6 @@ function pre_process_Callback(hObject, eventdata, handles)
 % hObject    handle to pre_process (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-apply_filter=0;
 handles=guidata(hObject);
 %Display message:
 set(handles.processing_status_display,'String','Processing . . .');
@@ -286,21 +285,78 @@ guidata(hObject,handles);
 setappdata(0,'hMainGui',gcf);
 display(['Applying filters.' , num2str(double(round(100*length(Filter_total.data_voxels_indices)/num_voxels_total_brain*10)/10)) ,'% of brain voxels passed mask.']);
 
+
+% Find bolus start, compute baseline  (code taken from Gilad)
+
+disp('Rough estimation of bolus time');
+% We mask again for all slices with value bigger than minimum (this time for all time periods and not just the first)
+% DCE2D=Reshape4d22d(DCE4D,MskMinSignal);
+DSC2D=reshape(data4D_filtered,size(data4D_filtered,1)*size(data4D_filtered,2)*size(data4D_filtered,3),size(data4D_filtered,4));
+DSC2D_data=DSC2D(Filter_total.data_voxels_indices,:);
+
+% Get the median of each of the 3d images for the entire time slots 
+MedTC=median(DSC2D_data,1);
+% [~, optmixture] = GaussianMixture(MedTC', 3, 0,false);
+% [Z Grouped]=max(optmixture.pnk,[],2);
+% if(max(Grouped)==1)
+%     Smoothed=conv2(MedTC,ones(1,ceil(nVols/10)),'same');
+%     [a BolusStart]=max(Smoothed);
+% else
+%     Grouped(end)=Grouped(1)+1;
+%     BolusStart=find(Grouped~=Grouped(1),1);end
+% Second method
+% TwoMinTimePoint=floor(2/TimeBetweenDCEVolsMin);
+Ps=zeros(1,numel(MedTC))+2;
+% We use the t-test to get the biggest probability that the distribution of the sample
+% is diffrent than the rest of the test ( -> smallest Ps value)
+for i=3:min(numel(MedTC)-2) %Take the minimum out of 2 minutes frame to 2 frames before the end
+    [h Ps(i)]=ttest2(MedTC(1:i),MedTC((i+1):end),[],[],'unequal');
+end
+mLPs=-log(Ps);
+% figure;plot(1:numel(MedTC),MedTC,'b',1:numel(MedTC),mLPs.*(max(MedTC)-min(MedTC))./(max(mLPs)-min(mLPs))+min(MedTC),'r')
+[Tmp, BolusStart]=max(mLPs);
+
+handles.BolusStart=BolusStart;
+% ASK GILAD - why did he add +1?
+% BolusStart=BolusStart+1;
+% BolusStartMin=(BolusStart-1)*TimeBetweenDCEVolsMin;
+% BolusStart=find(MedTC>MedTC(1)+20,1);
+% The base line is the mean of the first images until the bolus
+% Baseline=mean(DCE4D(:,:,:,1:(BolusStart-2)),4);
+% BaselineFN=[WorkingP 'Baseline.nii'];
+% Raw2Nii(Baseline,BaselineFN,'float32', MeanFN);
+% figure(78362);subplot(1,2,2);
+% plot(MedTC); hold on;plot([BolusStart BolusStart],[min(MedTC) max(MedTC)],'r');
+% title('Bolus start approximation');
+
+
+
 %Show several DSC data time curves on a separate figure:
 display('Showing some random DSC time curves...');
 num_DSC_curves_to_show=20;
 DSC_curve_indices_to_show=ceil(length(Filter_total.data_voxels_indices)*rand([1 num_DSC_curves_to_show]));
 DSC_curves_fig=figure;set(DSC_curves_fig,'units','normalized','outerposition',[0 0 1 1]);
+min_val_in_figure=Inf;
+max_val_in_figure=-Inf;
 for ii=1:num_DSC_curves_to_show
-   plot(3:size(data4D_init,4),squeeze(log(data4D_init(data_voxels_row_inds(DSC_curve_indices_to_show(ii)),data_voxels_col_inds(DSC_curve_indices_to_show(ii)),data_voxels_slice_inds(DSC_curve_indices_to_show(ii)),3:end))));
+   log_curve_to_show=squeeze(log(data4D_init(data_voxels_row_inds(DSC_curve_indices_to_show(ii)),data_voxels_col_inds(DSC_curve_indices_to_show(ii)),data_voxels_slice_inds(DSC_curve_indices_to_show(ii)),3:end)));
+   plot(3:size(data4D_init,4),log_curve_to_show);
    hold all;
+   if min(log_curve_to_show)<min_val_in_figure
+       min_val_in_figure=min(log_curve_to_show);
+   end
+   if max(log_curve_to_show)>max_val_in_figure
+       max_val_in_figure=max(log_curve_to_show);
+   end
 end
+plot([BolusStart BolusStart],[min_val_in_figure-0.1 max_val_in_figure+0.1],'r','LineWidth',2)
 grid on;
 grid minor;
 axis_vec=axis;
 set(gca,'xtick',[0:2:size(data4D_init,4)]);
 set(gca,'ytick',[0:axis_vec(4):axis_vec(4)])
 title('Ln of DSC intensity curves (randomly chosen)');
+
 
 %Open the bolus properties GUI and use its output:
 setappdata(0,'first_bl_sample',str2double(get(handles.first_bl_sample_value,'String')));
@@ -343,7 +399,7 @@ baseline_edges=[handles.first_bl_sample handles.last_bl_sample];
 % [concentration_4D Mask] = Intens2concentration_4D(data4D_filtered,baseline_edges,TE,Mask);
 concentration_4D=handles.concentration_4D;
 Mask=handles.Mask;
-
+handles.BolusStart=BolusStart;
 
 % find global min/max concentrations for later use: (only from the voxels
 % that passed the mask)
@@ -479,8 +535,10 @@ else
     file_type_ext=file_type;
 end
 file_type_str=strcat('*.',file_type_ext);
-% [FileName,PathName] = uigetfile({file_type_str});
-PathName=uigetdir('D:\users\chenh\DSC_project\temp\temp12\Nii_from_Dicoms');
+init_folder_choose='D:\users\chenh\DSC_project\temp\temp25\Nii_from_Dicoms';
+[FileName,PathName] = uigetfile({file_type_str},'Select data (Choose the first file, the whole list will be used)',init_folder_choose);
+handles.init_folder_choose=init_folder_choose;
+% PathName=uigetdir2('D:\users\chenh\DSC_project\temp\temp12\Nii_from_Dicoms','Select folder to Open');
 set(handles.src_folder_str_to_display,'String',PathName);
 % data_file_path=strcat(PathName,FileName);
 % set(handles.src_folder_str_to_display,'String',strcat('Opened file: ',data_file_path));
@@ -619,13 +677,14 @@ last_sample=str2double(get(handles.last_sample_value,'String'));
 baseline_edges=[first_bl_sample last_bl_sample];
 Header=handles.header;
 Mask=handles.Mask;
-name_str=Header.hdr.hk.db_name;
-TE=str2double(name_str(strfind(name_str,'TE')+3:strfind(name_str,'TE')+4));
+name_str=Header.hdr.hist.descrip;
+TE=0.001*str2double(name_str(strfind(name_str,'TE')+3:strfind(name_str,'TE')+4));
 if isnan(TE)
-    TE=30;
+    TE=0.030;
 elseif TE<0 || TE>1000
     error('TE has an invalid value: ',TE);
 end
+handles.TE=TE;
 data4D_filtered=handles.data4D_filtered;
 [concentration_4D Mask] = Intens2concentration_4D(data4D_filtered,baseline_edges,last_sample,TE,Mask,handles);
 
@@ -1006,7 +1065,7 @@ display('AIF calculated (user chosed manually)');
 AIF=handles.AIF;
 concentration4D=handles.concentration_4D;
 Mask=handles.Mask;
-handles.permeability_correction=get(handles.button_perm_correction,'Value');
+handles.permeability_correction=get(handles.perm_correction_checkbox,'Value');
 deconv_methods.sSVD.en=get(handles.checkbox_sSVD,'Value');
 deconv_methods.sSVD.th=str2double(get(handles.checkbox_sSVD_th,'String'));
 deconv_methods.cSVD.en=get(handles.checkbox_cSVD,'Value');
@@ -1015,9 +1074,9 @@ deconv_methods.oSVD.en=get(handles.checkbox_oSVD,'Value');
 deconv_methods.oSVD.OI=str2double(get(handles.checkbox_oSVD_OI,'String'));
 deconv_methods.tikhonov.en=get(handles.checkbox_tikhonov,'Value');
 tic;
-[CBF,CBV,MTT,K1,K2]=calc_maps(concentration4D,AIF,Mask,deconv_methods,handles);
+[CBF,CBV,MTT,K1,K2,TTP]=calc_maps(concentration4D,AIF,Mask,deconv_methods,handles);
 maps_calc_time=toc;
-maps_path=save_maps(CBF,CBV,MTT,K1,K2,Mask,deconv_methods,handles.dest_dir);
+maps_path=save_maps(CBF,CBV,MTT,K1,K2,TTP,Mask,deconv_methods,handles);
 maps_folder_message_str=['Maps saved to: ',maps_path];
 set(handles.maps_folder_message,'Enable','on');
 set(handles.maps_folder_message,'String',maps_folder_message_str);
@@ -1310,7 +1369,8 @@ function choose_dest_folder_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 handles=guidata(hObject);
-dest_dir=uigetdir('D:\users\chenh\DSC_project\temp\temp12');
+init_folder_choose=handles.init_folder_choose;
+dest_dir=uigetdir(init_folder_choose);
 set(handles.dest_folder_string,'String',[dest_dir]);
 set(handles.get_data_text,'String','');
 handles.dest_dir=dest_dir;
@@ -1379,15 +1439,6 @@ function checkbox_LowSteadyState_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of checkbox_LowSteadyState
 
 
-% --- Executes on button press in button_perm_correction.
-function button_perm_correction_Callback(hObject, eventdata, handles)
-% hObject    handle to button_perm_correction (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of button_perm_correction
-
-
 % --- Executes on button press in DCE_init_pushbutton.
 function DCE_init_pushbutton_Callback(hObject, eventdata, handles)
 % hObject    handle to DCE_init_pushbutton (see GCBO)
@@ -1423,3 +1474,54 @@ function Brain_TH_textbox_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in perm_correction_checkbox.
+function perm_correction_checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to perm_correction_checkbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of perm_correction_checkbox
+
+
+% --- Executes on button press in calcTTP_checkbox.
+function calcTTP_checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to calcTTP_checkbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of calcTTP_checkbox
+
+
+% --- Executes on button press in AIF_from_file_pushbutton.
+function AIF_from_file_pushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to AIF_from_file_pushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+handles=guidata(hObject);
+file_type_str={'*.txt','*.mat'};
+init_folder_choose=handles.init_folder_choose;
+[FileName,PathName] = uigetfile(file_type_str,'Choose AIF curve file',init_folder_choose);
+AIFcurve_text_array=textread([PathName FileName],'%s');
+[Lia,Loc]=ismember('bolusinfo',AIFcurve_text_array);
+if Lia==1
+    handles.first_bl_sample=str2double(AIFcurve_text_array(Loc+2));
+    set(handles.first_bl_sample_value,'String',AIFcurve_text_array(Loc+2));
+    handles.last_bl_sample=str2double(AIFcurve_text_array(Loc+3));
+    set(handles.last_bl_sample_value,'String',AIFcurve_text_array(Loc+3));
+    handles.last_sample=str2double(AIFcurve_text_array(Loc+4));
+    set(handles.last_sample_value,'String',AIFcurve_text_array(Loc+4));
+    update_bolus_properties_Callback(hObject, eventdata, handles);
+    guidata(hObject,handles);
+    AIF=str2double(AIFcurve_text_array(Loc+5:end));
+    %in the file, the AIF is 1000 times smaller and need to be normalized:
+    AIF=AIF*1000;
+    handles.AIF=AIF;
+    plot_AIF(AIF,AIF,handles);
+else
+   display('Cannot reaf AIF from file. The text file is not in the right format');
+   set(handles.AIF_from_file_textbox,'String','Error reading AIF from file');
+end
+guidata(hObject,handles);

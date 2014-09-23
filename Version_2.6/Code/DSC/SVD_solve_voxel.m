@@ -13,6 +13,7 @@ cSVD_en=deconv_methods.cSVD.en;
 cSVD_th=deconv_methods.cSVD.th;
 oSVD_en=deconv_methods.oSVD.en;
 oSVD_OI=deconv_methods.oSVD.OI;
+tikh_en=deconv_methods.tikhonov.en;
 
 AIF=AIF(:);
 Ct=Ct(:);
@@ -91,6 +92,70 @@ if cSVD_en || oSVD_en  % Circular SVD
         Rt.oSVD=Rt_vec;
     end
 end
+
+%------ Tikhonov regularization -----------------------%
+
+if tikh_en
+    if ~exist('AIFmat')
+        AIFmat=AIF2mat(AIF,deltaT,Rt_type);
+    end
+    % build L1 matrix:
+    N=length(Ct);
+    P=N-1;
+    L1_mat=zeros(P,N);
+    L1_mat(:,1:end-1)=-1*eye(P);
+    L1_mat(:,2:end)=L1_mat(:,2:end)+eye(P);
+    % transformation to standard form, for direct method
+%     [K R]=qr(L1_mat.');
+%     Kp=K(:,1:end-1);
+%     Rp=R(1:end-1,:);
+%     Ko=K(:,end);
+%     [H T]=qr(AIFmat*Ko);
+%     Ho=H(:,1);
+%     Hq=H(:,2:end);
+%     To=T(1,:);
+%     AIFmat_standard=Hq.'*AIFmat*L1_mat';
+%     Ct_standard=Hq.'*Ct;
+    
+    [AIFmat_s,Ct_s,L1_mat_s,K,M] = std_form(AIFmat,L1_mat,Ct);
+    [U,S,V] = svd(AIFmat_s);
+    %%%%%%%% regularization part, elimintaing small values in S, if needed:
+    
+    %%%%%%%%%%
+    % Solve using SVD and then Tikhonov:
+    s=diag(S);
+    [reg_corner,rho,eta,reg_param] = l_curve(U,s,Ct_s,'Tikh');
+    
+    % finding the best lambda and best total norm:
+    lambda_vec=0.0001:0.0001:1;
+    lambda_best=0;
+    norm_best=inf;
+    for lambda_ind=1:length(lambda_vec)
+        lambda=lambda_vec(lambda_ind);
+        [Rt_sf,rho,eta] = tikhonov(U,s,V,Ct_s(:),lambda);
+        norms_Ax_b_s(lambda_ind)=norm(AIFmat_s*Rt_sf-Ct_s(:))^2;
+        norms_x_s(lambda_ind)=norm(Rt_sf)^2;
+%         Rt=gen_form(L1_mat_s,Rt_sf,AIFmat,Ct,K,M);%(L1_sq)\Rt_sf;
+        %calc norm without standart form
+%         norms_Ax_b(lambda_ind)=norm(AIFmat*Rt-Ct(:))^2;
+%         norms_Lx(lambda_ind)=norm(L1_mat*Rt)^2;;
+        norm_Ax_b_Lx_s=norms_Ax_b_s(lambda_ind)+lambda^2*norms_x_s(lambda_ind);
+        norms_Ax_b_Lx_s(lambda_ind)=norm_Ax_b_Lx_s;
+        if norm_Ax_b_Lx_s<norm_best
+            norm_best=norm_Ax_b_Lx_s;
+            lambda_best=lambda;
+        end
+    end
+    
+    lambda=sqrt(reg_corner);
+    [Rt_lambda_s,rho,eta] = tikhonov(U,s,V,Ct_s,lambda);
+    
+    %Return to the original R(t) in the general form:
+    Rt.Tikh = gen_form(L1_mat_s,Rt_lambda_s,AIFmat,Ct,K,M);
+    Rt_OI=sum(abs(Rt.Tikh(3:end)-2*Rt.Tikh(2:end-1)+Rt.Tikh(1:end-2)))/max(Rt.Tikh)/length(Ct);
+    a=5;
+end
+
 
 % Rt_voxel = [Rt_sSVD Rt_cSVD Rt_oSVD];
 

@@ -5,7 +5,7 @@ axes(handles.plot_AIFs);
 % choose the max of y axis, for a comfortable view (there are 2
 % different options. One is the global maximum, the other is the max of
 % ~90% from the curves.
-local_max=max(CTC);
+local_max=max(max(AIF),max(CTC));
 if local_max>handles.c_t_majority_max
     y_axis_max=handles.c_t_global_max;
 else

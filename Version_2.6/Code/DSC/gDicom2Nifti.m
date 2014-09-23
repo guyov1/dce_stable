@@ -49,6 +49,7 @@ else
                             CurTFN=fullfile(TPath,[TName Suffix]);
                             movefile([Base filesep 'dti' filesep D(i).name],CurTFN);
                         end
+                        Out=NFiles;
                     else
                         [A B C]=fileparts(TRG_FN);
                         D=dir(fullfile(Base,'func/run_0001/',[B '_*.nii']));

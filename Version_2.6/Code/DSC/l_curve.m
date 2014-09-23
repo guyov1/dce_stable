@@ -128,7 +128,7 @@ if (locate)
 end
 
 % Make plot.
-plot_lc(rho,eta,marker,ps,reg_param);
+% plot_lc(rho,eta,marker,ps,reg_param);
 % if locate
 %   ax = axis;
 %   HoldState = ishold; hold on;

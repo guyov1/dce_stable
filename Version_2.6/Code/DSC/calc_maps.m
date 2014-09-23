@@ -1,4 +1,4 @@
-function [Flow,CBV,MTT,K1,K2] = calc_maps(concentration4D,AIF,Mask,deconv_methods,handles)
+function [Flow,CBV,MTT,K1,K2,TTP] = calc_maps(concentration4D,AIF,Mask,deconv_methods,handles)
 
 % Input:  concentration4D: c(t) for each voxel (that passed the mask)
 %         AIF: was chosen manually or automotically before
@@ -24,10 +24,12 @@ data_voxels_indices=handles.data_voxels_indices;
 % CBV=integral(C_VOI(t)) / integral(AIF(t))
 % CBV=zeros(size(concentration4D));
 % CBV=sum(concentration4D,4)/sum(AIF);
-CBV_init=trapz(concentration4D,4)/trapz(AIF);
+
+% First we use CBV without normalization in the factor of the AIF area
+% under the curve: (After correction, we also normalize)
+CBV_init=trapz(concentration4D,4);
 CBV.corr=CBV_init;
 CBV.no_corr=CBV_init;
-display('Calculated CBV map');
 % Inserting correction for contrast agent extravasation, according to the
 % paper of Weisskoff 2006
 % The defualt CBV will be the one WITH the correction.
@@ -86,12 +88,14 @@ if handles.permeability_correction
     end
     
 end
+CBV.corr_norm=CBV.corr/trapz(AIF);
+display('Calculated CBV map');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% calculating Flow and MTT- using SVD methods:
 % MTT = CBV/Flow
-if any([deconv_methods.sSVD.en deconv_methods.cSVD.en deconv_methods.oSVD.en ])
+if any([deconv_methods.sSVD.en deconv_methods.cSVD.en deconv_methods.oSVD.en deconv_methods.tikhonov.en])
     display('Start calculating CBF using methods:');
-    Rt_4D = SVD_solve_4D(AIF,concentration4D,Mask,deltaT,Rt_type,deconv_methods,handles);
+    [Rt_4D,TTP] = SVD_solve_4D(AIF,concentration4D,Mask,deltaT,Rt_type,deconv_methods,handles);
     if deconv_methods.sSVD.en
         Flow.sSVD=max(Rt_4D.sSVD,[],4);
         MTT.sSVD=zeros(size(CBV_init));
@@ -107,5 +111,13 @@ if any([deconv_methods.sSVD.en deconv_methods.cSVD.en deconv_methods.oSVD.en ])
         MTT.oSVD=zeros(size(CBV_init));
         MTT.oSVD(data_voxels_indices)=CBV.corr(data_voxels_indices) ./ Flow.oSVD(data_voxels_indices);
     end
+    if deconv_methods.tikhonov.en
+        Flow.Tikh=max(Rt_4D.Tikh,[],4);
+        MTT.Tikh=zeros(size(CBV_init));
+        MTT.Tikh(data_voxels_indices)=CBV.corr(data_voxels_indices) ./ Flow.Tikh(data_voxels_indices);        
+    end
 end
 
+%% Calc TTP (Time to Peak):
+% TimeBetweenSamples=2; % two [sec] between samples
+% TTP=calcTTP(handles,TimeBetweenSamples);
