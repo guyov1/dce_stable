@@ -19,8 +19,14 @@ Sim_Struct = struct;
 % Set simulation parameters
 Sim_Struct = Simulation_Set_Params(Sim_Struct, Verbosity);
 
-% Override the real data flag
-Sim_Struct.RealData_Flag = true;
+% Override real data flag and parameters range
+Sim_Struct.RealData_Flag       = true;
+Sim_Struct.Vb_low              = 0.1; % [mL/100g]     , they used 3,6,12,18
+Sim_Struct.Vb_max              = 100;
+Sim_Struct.Ve_low              = 0.1; % Must be smaller than Vtis
+Sim_Struct.Ve_max              = 100;
+Sim_Struct.LowerBound_Larsson  = [Sim_Struct.Vb_low Sim_Struct.E_low  Sim_Struct.Ve_low];
+Sim_Struct.UpperBound_Larsson  = [Sim_Struct.Vb_max Sim_Struct.E_max  Sim_Struct.Ve_max];
 
 % Set parallel processing if needed
 Set_Parallel_Processing(Sim_Struct, Verbosity);
@@ -165,7 +171,7 @@ Chosen_AIF = AIF_estimated_ICA;
 Chosen_AIF = double( Sim_Struct.AIF_Scaling_Factor * Chosen_AIF );
 
 [ Flow_Larsson, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, Est_IRF, fitted_gaussian, conv_result_IRF, conv_result_gaussian, RMS_ht, RMS_gauss, RMS_params,...
-    calculated_double_gaussian, conv_result_double_gaussian, double_gauss_params, RMS_double_gauss, RMS_params_double_gauss, Ktrans, Vb, Ve, MTT, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = ...
+    calculated_double_gaussian, conv_result_double_gaussian, double_gauss_params, RMS_double_gauss, RMS_params_double_gauss, Ktrans, E, Vb, Ve, MTT, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = ...
     Get_Ht_Deconvolving(Sim_Struct, Chosen_AIF, Ct , Output_directory, Subject_name, Sim_Struct.Force_RealData_Calc, Verbosity);
 
 %% Debugging results
@@ -236,7 +242,7 @@ Mat_File_To_Save = [PefusionOutput 'Run_Output/' 'All_Parameters_Result.mat'];
 
 save(Mat_File_To_Save,'Flow_Larsson','Delay_sec_by_Max_Val'...
     ,'est_delay_by_AIF_correct','t_delay_single_gauss_sec','sigma_seconds_single_gauss','Amp_single_gauss','Est_IRF','conv_result_IRF', 'conv_result_gaussian','RMS_ht'...
-    ,'RMS_gauss','RMS_params','double_gauss_params','RMS_double_gauss','RMS_params_double_gauss','Ktrans', 'Vb', 'Ve', 'MTT', 'Ktrans_Patlak_vec', 'Vb_Patlak_vec', 'MTT_Patlak_vec' ,'Msk2'...
+    ,'RMS_gauss','RMS_params','double_gauss_params','RMS_double_gauss','RMS_params_double_gauss','Ktrans', 'E', 'Vb', 'Ve', 'MTT', 'Ktrans_Patlak_vec', 'Vb_Patlak_vec', 'MTT_Patlak_vec' ,'Msk2'...
     ,'WorkingP','PefusionOutput','num_total_voxels','time_vec_minutes','TimeBetweenDCEVolsFinal','time_vec_minutes');
 %load(Mat_File_To_Save);
 
@@ -275,6 +281,7 @@ if (num_total_voxels > 1000)
     RMS_double_gauss_3D                  = Reshape2DCto4D(RMS_double_gauss,Msk2);
     RMS_params_double_gauss_3D           = Reshape2DCto4D(RMS_params_double_gauss,Msk2);
     Ktrans_3D                            = Reshape2DCto4D(Ktrans,Msk2);
+    E_3D                                 = Reshape2DCto4D(E,Msk2);
     Vb_3D                                = Reshape2DCto4D(Vb,Msk2);
     Ve_3D                                = Reshape2DCto4D(Ve,Msk2);
     MTT_3D                               = Reshape2DCto4D(MTT,Msk2);
@@ -436,6 +443,9 @@ if (num_total_voxels > 1000)
     
     MeanFN=[PefusionOutput 'Ktrans.nii'];
     Raw2Nii(Ktrans_3D,MeanFN,'float32',DCEFNs{1});
+    
+    MeanFN=[PefusionOutput 'E.nii'];
+    Raw2Nii(E_3D,MeanFN,'float32',DCEFNs{1});
     
     MeanFN=[PefusionOutput 'Vb.nii'];
     Raw2Nii(Vb_3D,MeanFN,'float32',DCEFNs{1});

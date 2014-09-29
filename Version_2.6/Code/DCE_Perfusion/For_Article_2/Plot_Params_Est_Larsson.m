@@ -12,7 +12,6 @@ min_BAT_display     = 0;
 max_BAT_display     = 3;
 BAT_y_scale         = 2;
 
-num_data            = 3;
 
 % Options
 % '-'  - Solid line (default)
