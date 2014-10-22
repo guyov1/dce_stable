@@ -134,10 +134,20 @@ axes(handles.axes2);cla;
 plot(handles.HSampleTs,handles.HAIF,'k');
 
 function ShowIm(hObject, eventdata, handles)
+BExport=false;
+if(isfield(handles,'Export'))
+    BExport=handles.Export;
+end
+handles.Export=false;
+
 CurV=get(handles.listbox1,'Value');
 CurS=round(get(handles.slider1,'Value'));
 
-axes(handles.axes1);
+if(BExport)
+    figure;
+else
+    axes(handles.axes1);
+end
 
 Data=squeeze(handles.Vols{CurV}(:,:,CurS));
 if(isnan(handles.DR(CurV,1)))
@@ -288,6 +298,11 @@ guidata(hObject, handles);
 PlotStuff(hObject, eventdata, handles);
 
 function PlotStuff(hObject, eventdata, handles)
+BExport=false;
+if(isfield(handles,'Export'))
+    BExport=handles.Export;
+end
+
 SDCE=size(handles.Vols{1});
 ChosenVoxels=handles.ChosenVoxels;
 Idxs=handles.Idx3D(sub2ind(SDCE,ChosenVoxels(:,1),ChosenVoxels(:,2),ChosenVoxels(:,3)));
@@ -295,7 +310,11 @@ Good=isfinite(Idxs);
 Idxs=Idxs(Good);
 CurS=get(handles.slider1,'Value');
 
-axes(handles.axes2);cla;
+if(BExport)
+    figure;
+else
+    axes(handles.axes2);cla;
+end
 
 if(isempty(Idxs))
     plot(handles.HSampleTs,handles.HAIF,'k');
@@ -395,7 +414,6 @@ end
 StartT=str2num(get(handles.edit5,'String'));
 EndT=str2num(get(handles.edit6,'String'));
 axis([StartT EndT -M/2 M*1.5]); %[-1 2]/1000
-
 
 ShowIm(hObject, eventdata, handles);
 
@@ -617,3 +635,5 @@ Export.CurS=CurS;
 Export.CurPKs=handles.PKs(Idxs,:);
 Export.CurCTCs=handles.CTC2D(Idxs,:);
 save('Export.mat','Export');
+handles.Export=true;
+PlotStuff(hObject, eventdata, handles);
