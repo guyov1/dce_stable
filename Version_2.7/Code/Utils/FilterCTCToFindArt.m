@@ -1,0 +1,50 @@
+function [DataOut, Idxs, MskOut, Msks]=FilterCTCToFindArt(CTC2D,Msk3D,NumVols,TimeBetweenDCEVolsFinal,BolusStart,Options)
+
+[Mx, MxInd]=max(CTC2D(:,1:NumVols),[],2);
+OneMinuteInMiuntes=1;
+MinuteAfterMx=CTC2D(sub2ind(size(CTC2D),1:size(CTC2D,1),min(NumVols,(MxInd+ceil((OneMinuteInMiuntes*60)/TimeBetweenDCEVolsFinal))')));
+rMinute=Mx./(MinuteAfterMx');
+NearEndVal=mean(CTC2D(:,(end-2):end),2);
+rMinuteToEnd=MinuteAfterMx'./NearEndVal;
+NotVeins=rMinute<10;
+NotTooPremeable=rMinute>1.2;
+NotTooPremeable2=rMinute>1.5;
+WashingOut=rMinuteToEnd>1.3;
+NotVeinsOrPermeable=NotVeins & NotTooPremeable & WashingOut & NotTooPremeable2;
+MskCTC=Msk3D;
+OneMinuteAfterFilter=MskCTC;
+OneMinuteAfterFilter(OneMinuteAfterFilter)=NotVeinsOrPermeable;
+Msks=cell(0);
+Tmp=MskCTC;
+Tmp(MskCTC)=NotVeins;
+Msks{1}=Tmp;
+Tmp(MskCTC)=NotTooPremeable;
+Msks{end+1}=Tmp;
+Tmp(MskCTC)=NotTooPremeable2;
+Msks{end+1}=Tmp;
+Tmp(MskCTC)=WashingOut;
+Msks{end+1}=Tmp;
+% CTC2D2=CTC2D(NotVeinsOrPermeable,:);
+%%
+ApproximatePeakTime=FindApproximatePeakTime(CTC2D,BolusStart,NumVols);
+PeakTimeMsk=Msk3D;
+PeakTimeMsk(PeakTimeMsk)=ApproximatePeakTime<(median(ApproximatePeakTime(isfinite(ApproximatePeakTime)))+Options.TimeDelayToMaskVeins);
+GoodBaselineLevel1D=abs(mean(CTC2D(:,1:(BolusStart-2)),2)./max(CTC2D,[],2))<0.2;
+GoodBaselineLevelMsk=MskCTC;
+GoodBaselineLevelMsk(GoodBaselineLevelMsk)=GoodBaselineLevel1D;
+Msks{end+1}=GoodBaselineLevelMsk;
+Msks{end+1}=OneMinuteAfterFilter;
+Msks{end+1}=GoodBaselineLevelMsk;
+PeakAndFallFiter=PeakTimeMsk & OneMinuteAfterFilter & GoodBaselineLevelMsk;
+% MskCTC=Idx3D>0;
+% MskCTC2=MskCTC & ApproximatePeakTime<(median(ApproximatePeakTime1D)+Philips*2+Options.TimeDelayToMaskVeins);
+MskCTC2=MskCTC & PeakAndFallFiter;
+%%
+NoiseVals=EstimateNoise(CTC2D);
+NoiseMsk=MskCTC;
+NoiseMsk(NoiseMsk)=NoiseVals<0.15;
+Msks{end+1}=NoiseMsk;
+
+MskOut=OneMinuteAfterFilter & PeakAndFallFiter & NoiseMsk;
+Idxs=getIndicesOfMskInsideMsk(MskOut,Msk3D);
+DataOut=CTC2D(Idxs,:);
