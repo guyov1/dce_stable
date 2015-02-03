@@ -48,13 +48,14 @@ AIF_delay_max                   = Sim_Struct.AIF_delay_max;
 Use_Cyclic_Conv_4_ht_est        = Sim_Struct.Use_Cyclic_Conv_4_ht_est;
 Upsampling_resolution_Sec       = Sim_Struct.Upsampling_resolution_Sec;
 Correct_estimation_due_to_delay = Sim_Struct.Correct_estimation_due_to_delay;
+LQ_Model_AIF_Delay_Correct      = Sim_Struct.LQ_Model_AIF_Delay_Correct;
 Simple_AIF_Delay_Correct        = Sim_Struct.Simple_AIF_Delay_Correct;
 Filter_Est_Chosen               = Sim_Struct.Filter_Est_Chosen;
 Add_Randomly_AIF_Delay          = Sim_Struct.Add_Randomly_AIF_Delay;
 
 if Add_Randomly_AIF_Delay
     Delay_Used  = 'With_Delay';
-    Delay_Range = ['_' num2str(AIF_delay_low) '_to_' num2str(AIF_delay_max) '_resolution_' num2str(Upsampling_resolution_Sec) '_'];
+    Delay_Range = ['_' num2str(AIF_delay_low) '_to_' num2str(AIF_delay_max) '_resolution_' num2str(Upsampling_resolution_Sec)];
 else
     Delay_Used  = 'No_Delay';
     Delay_Range = '';
@@ -62,13 +63,15 @@ end
 
 Delay_String = [Delay_Used Delay_Range];
 
-if     ( Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+if     ( LQ_Model_AIF_Delay_Correct && Correct_estimation_due_to_delay)
+    Correction_Type = 'LQ_MODEL';    
+elseif ( Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
     Correction_Type = 'Cyclic';    
 elseif ( Use_Cyclic_Conv_4_ht_est &&  Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
     Correction_Type = 'Cyclic_And_Simple';
 elseif ( Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct &&  Correct_estimation_due_to_delay )
     Correction_Type = 'Cyclic_And_BiExp';
-elseif (~Use_Cyclic_Conv_4_ht_est &&  Simple_AIF_Delay_Correct && ~Correct_estimation_due_to_delay )
+elseif (~Use_Cyclic_Conv_4_ht_est &&  Simple_AIF_Delay_Correct &&  Correct_estimation_due_to_delay )
     Correction_Type = 'Simple';
 elseif (~Use_Cyclic_Conv_4_ht_est && ~Simple_AIF_Delay_Correct &&  Correct_estimation_due_to_delay )
     Correction_Type = 'BiExp';
@@ -88,7 +91,7 @@ save(Mat_File_Name,'plot_error_results_flag',...
      'iterate_Vb_larsson','iterate_E_larsson','Vb_single','E_single',...
      'F_single','iterate_AIF_delay','iterate_uniformly','results',...
      'Filter_Est_Chosen','F_low','E_low','Vb_low','Ve_low',...
-     'F_max','E_max','Vb_max','Ve_max');
+     'F_max','E_max','Vb_max','Ve_max','AIF_delay_low','AIF_delay_max');
 
 font_size                         = 20; % For plots
 font_size_axis                    = 12;

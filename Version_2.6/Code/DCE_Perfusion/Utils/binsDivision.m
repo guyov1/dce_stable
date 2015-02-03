@@ -1,4 +1,4 @@
-function [real_bins, mean_bins, std_bins] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name)
+function [real_bins, mean_bins, std_bins, sem_bins, mean_abs_error, std_abs_error, sem_abs_error, mean_rel_error, std_rel_error, sem_rel_error] = binsDivision(realVec, estVec, numBins, minVec, maxVec, generationMinVal, generationMaxVal, param_name)
 %binsDivision - Divide data to bins
 
 % Screen needed range for parameters
@@ -41,7 +41,7 @@ switch param_name
         estData    = estVec(5,:);
         
     case {'BAT','Delay'}
-        chosen_idx = 5;
+        chosen_idx = 5; % Need to add delay min and max to .mat files
         realData   = realVec(6,:);
         estData    = estVec(6,:);
     otherwise
@@ -70,6 +70,7 @@ nj = accumarray(binIdx', 1, [numBins 1], @sum);
 
 mean_bins  = zeros(numBins, 1);
 std_bins   = zeros(numBins, 1);
+sem_bins   = zeros(numBins, 1);
 
 for i = 1 : numBins
     
@@ -78,6 +79,7 @@ for i = 1 : numBins
         relevant_est_data     = est_data_filtered(relevant_est_data_idx);
         mean_bins(i)          = mean(relevant_est_data);
         std_bins(i)           = std(relevant_est_data);
+        sem_bins(i)           = std(relevant_est_data) / sqrt(length(relevant_est_data));
     end
     
 end
@@ -107,8 +109,19 @@ upper_delta = max((upper_bound - upLimit)   , 0);
 lower_delta = min((lower_bound - lowerLimit), 0);
 std_bins    = std_bins - max(abs(upper_delta),abs(lower_delta));
 
+
 % Assign the new real value vector, the middle of the bins
 real_bins = cj';
+
+abs_error = abs(   real_data_filtered - est_data_filtered);
+rel_error = 100 * abs( ( real_data_filtered - est_data_filtered) ./ real_data_filtered ); % In percent
+
+mean_abs_error = mean(abs_error);
+std_abs_error  = std(abs_error);
+sem_abs_error  = std(abs_error) / sqrt(length(abs_error));
+mean_rel_error = mean(rel_error);
+std_rel_error  = std(rel_error);
+sem_rel_error  = std(rel_error) / sqrt(length(abs_error));
 
 end
 

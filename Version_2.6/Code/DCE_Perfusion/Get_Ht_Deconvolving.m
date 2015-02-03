@@ -1,7 +1,16 @@
-function [ Flow_vec, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, Est_IRF, ...
-    fitted_gaussian, conv_result_IRF, conv_result_gaussian, RMS_ht, RMS_gauss, RMS_params,...
-    fitted_double_gaussian, conv_result_double_gaussian, double_gaussian_param_vec, ...
-    RMS_double_gauss, RMS_params_double_gauss, Ktrans_vec, E_vec, Vb_vec, Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] ...
+function [ Flow_vec_with_Delay, Flow_vec_no_Delay, Delay_sec_by_Max_Val_with_Delay, Delay_sec_by_Max_Val_no_Delay, est_delay_by_AIF_correct, t_delay_single_gauss_sec,...
+    sigma_seconds_single_gauss, Amp_single_gauss, Est_IRF_with_Delay, Est_IRF_no_Delay, fitted_gaussian, ...
+    conv_result_Larss_with_Delay, conv_result_Larss_no_Delay, conv_result_Larss_no_Delay_High_F, conv_result_Larss_no_Delay_no_E, conv_result_Larss_no_Delay_no_E_High_F, ...
+    conv_result_no_Delay_IRF, conv_result_gaussian, ...
+    RMS_Larss_with_Delay, RMS_Larss_no_Delay, RMS_Larss_with_Delay_High_F, RMS_Larss_no_Delay_High_F, RMS_Larss_with_Delay_no_E_3D, ...
+    RMS_Larss_no_Delay_no_E, RMS_Larss_with_Delay_no_E_High_F, RMS_Larss_no_Delay_no_E_High_F, RMS_Larss_no_Delay_zero_params,...
+    RMS_ht_no_Delay, RMS_gauss, RMS_params_Gauss, fitted_double_gaussian, conv_result_double_gaussian, ...
+    double_gaussian_param_vec, RMS_double_gauss, RMS_params_double_gauss, Ktrans_with_Delay_vec, Ktrans_no_Delay_vec, ...
+    E_with_Delay, E_no_Delay, Ktrans_with_Delay_High_F, Ktrans_no_Delay_High_F, ...
+    Vb_with_Delay, Vb_no_Delay, Vb_with_Delay_High_F, Vb_no_Delay_High_F, Vb_with_Delay_no_E, Vb_no_Delay_no_E, Vb_with_Delay_no_E_High_F, Vb_no_Delay_no_E_High_F, ...
+    Ve_with_Delay, Ve_no_Delay, Ve_with_Delay_High_F, Ve_no_Delay_High_F, ...
+    MTT_with_Delay, MTT_no_Delay, Ktrans_Patlak_with_Delay_vec, Ktrans_Patlak_no_Delay_vec, ...
+    Vb_Patlak_with_Delay_vec, Vb_Patlak_no_Delay_vec, MTT_Patlak_with_Delay_vec, MTT_Patlak_no_Delay_vec ] ...
     = Get_Ht_Deconvolving(Sim_Struct, AIF, Ct , Output_directory, Subject_name, Force_RealData_Calc, Verbosity)
 
 %Get_Ht_Deconvolving Extracting possible h_t filter
@@ -20,13 +29,13 @@ function [ Flow_vec, Delay_sec_by_Max_Val, est_delay_by_AIF_correct, t_delay_sin
 %   - conv_result_gaussian, the result of AIF convolved with gaussian
 %   - RMS_ht, the root mean square error of conv_result with h_t and Ct.
 %   - RMS_gauss, the root mean square error of conv_result with estimated gaussian and Ct.
-%   - RMS_params, the root mean square error of the gaussian using the parameters
+%   - RMS_params_Gauss, the root mean square error of the gaussian using the parameters
 %          and h(t)  (if too big, h(t) is not really a gaussian)
 %   - calculated_double_gaussian, the fitted double gaussian to ht
 %   - conv_result_double_gaussian,  the result of AIF convolved with double gaussian
 %   - double_gaussian_param_vec, all the double gaussian parameters (means, vars and amplitudes).
 %   - RMS_double_gauss, the root mean square error of conv_result with estimated double gaussian and Ct.
-%   - RMS_params_2, the root mean square error of the double gaussian using the parameters
+%   - RMS_params_double_gauss, the root mean square error of the double gaussian using the parameters
 %                   and h(t)  (if too big, h(t) is not really double gaussian)
 %   - Ktrans   - estimation for permeability according to Larsson
 %   - Vb   - estimation for blood volume according to Larsson
@@ -70,12 +79,13 @@ USE_WIENER                      = Sim_Struct.USE_WIENER;
 USE_TICHONOV                    = Sim_Struct.USE_TICHONOV;
 
 %% Estimating h(t) by Wiener filter / Tikhonov Regularization
-Est_IRF                         = zeros(num_voxels,num_time_stamps);
+Est_IRF_with_Delay              = zeros(num_voxels,num_time_stamps);
+Est_IRF_no_Delay                = zeros(num_voxels,num_time_stamps);
 est_delay_by_AIF_correct        = zeros(1,num_voxels);
 
 
 if USE_WIENER
-    [Est_IRF] = Wiener_Filter( min_interval*AIF, Ct, Fs);
+    [Est_IRF_no_Delay] = Wiener_Filter( min_interval*AIF, Ct, Fs);
 elseif USE_TICHONOV   
     
     % Choose knots for splines (currently takes every 1 out of 2 points)
@@ -140,7 +150,8 @@ elseif USE_TICHONOV
     In_Struct1.Vb_larss                           = NaN; % Simulation ground truth values
     In_Struct1.init_Ve_guess                      = Sim_Struct.init_Ve_guess;
     In_Struct1.FMS_Algorithm                      = Sim_Struct.FMS_Algorithm;
-    
+    In_Struct1.LQ_Model_AIF_Delay_Correct         = Sim_Struct.LQ_Model_AIF_Delay_Correct;
+
     In_Struct2                                    = struct;
     In_Struct2.Sim_AIF_with_noise_Regul           = AIF;
     In_Struct2.Sim_Ct_larss_Regul                 = NaN;
@@ -148,6 +159,7 @@ elseif USE_TICHONOV
     iter_num                                      = 1;
     avg_num                                       = 1;
     % ------------------------------------------------------------
+    
     
     if(exist(Mat_File_Ht,'file') && ~Force_RealData_Calc)
         load(Mat_File_Ht);
@@ -167,17 +179,18 @@ elseif USE_TICHONOV
         parfor j=1:num_voxels
             tic;
             
-            [ ~, ~, ~, b_spline_result_2nd_deriv, ~, ~, ~, ~ ] =  ...
+            [ ~, ~, ~, b_spline_result_2nd_deriv_no_Delay, ~, ~, ~, ~ ] =  ...
                 Regularization_Methods_Simulation( Sim_Ct_T, Ct(j,:)', Conv_Matrix, Conv_Matrix_no_noise, time_vec_minutes, lambda_vec_larss, normalize, min_interval, B_mat, B_PCA, plot_L_Curve, idx_fig, filter_type, Derivative_Time_Devision, plot_flag, RealData_Flag );
             
-            Est_IRF(j,:) = b_spline_result_2nd_deriv;
+            Est_IRF_no_Delay(j,:) = b_spline_result_2nd_deriv_no_Delay;
             
             % Estimate delay
             % Correct h(t) estimation if it seems we have delay in AIF
             if Correct_estimation_due_to_delay
-                [est_delay_by_AIF_correct(j), AIF_delay_corrected(j ,:), Est_IRF(j,:), ~] = ...
-                    AIF_Delay_Correct(In_Struct1, In_Struct2, Est_IRF(j,:), Ct(j,:)', Verbosity, iter_num, avg_num, idx_fig);
+                [est_delay_by_AIF_correct(j), AIF_delay_corrected(j ,:), Est_IRF_with_Delay(j,:), ~] = ...
+                    AIF_Delay_Correct(In_Struct1, In_Struct2, Est_IRF_no_Delay(j,:), Ct(j,:)', Verbosity, iter_num, avg_num, idx_fig);
             else
+                Est_IRF_with_Delay(j ,:)  = Est_IRF_no_Delay(j,:);
                 AIF_delay_corrected(j ,:) = AIF;
             end
             
@@ -196,7 +209,7 @@ elseif USE_TICHONOV
             end
             
         end
-        save(Mat_File_Ht, 'Est_IRF', 'est_delay_by_AIF_correct', 'AIF_delay_corrected');
+        save(Mat_File_Ht, 'Est_IRF_with_Delay','Est_IRF_no_Delay', 'est_delay_by_AIF_correct', 'AIF_delay_corrected');
         
     end
     
@@ -213,32 +226,66 @@ if(exist(Mat_File_Perfusion_Parameters,'file') && ~Force_RealData_Calc)
 else
     
     if Parallel_Real_Data_Est
-        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec, sigma_seconds_single_gauss, ...
-          Amp_single_gauss, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, E_vec, Vb_vec, ...
-          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Parallel_Params_Est_Real_Data(Sim_Struct, Est_IRF, Ct, AIF_delay_corrected, idx_fig );
+        [ ...
+          Flow_vec_with_Delay, Flow_vec_no_Delay, Delay_sec_by_Max_Val_with_Delay, Delay_sec_by_Max_Val_no_Delay, ...
+          t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, ...
+          fitted_larsson_with_Delay, fitted_larsson_no_Delay, fitted_larsson_with_Delay_High_F, fitted_larsson_no_Delay_High_F, ...
+          fitted_larsson_with_Delay_no_E, fitted_larsson_no_Delay_no_E, fitted_larsson_with_Delay_no_E_High_F, fitted_larsson_no_Delay_no_E_High_F, ...
+          fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, ...
+          Ktrans_with_Delay_vec, Ktrans_no_Delay_vec, ...
+          E_with_Delay, E_no_Delay, Ktrans_with_Delay_High_F, Ktrans_no_Delay_High_F,  ...
+          Vb_with_Delay, Vb_no_Delay, Vb_with_Delay_High_F, Vb_no_Delay_High_F, ...
+          Vb_with_Delay_no_E, Vb_no_Delay_no_E, Vb_with_Delay_no_E_High_F, Vb_no_Delay_no_E_High_F, ...
+          Ve_with_Delay, Ve_no_Delay, Ve_with_Delay_High_F, Ve_no_Delay_High_F, MTT_with_Delay, MTT_no_Delay, ...
+          Ktrans_Patlak_with_Delay_vec, Ktrans_Patlak_no_Delay_vec, Vb_Patlak_with_Delay_vec, Vb_Patlak_no_Delay_vec, ...
+          MTT_Patlak_with_Delay_vec, MTT_Patlak_no_Delay_vec ] ...
+          = Parallel_Params_Est_Real_Data(Sim_Struct, Est_IRF_with_Delay, Est_IRF_no_Delay, Ct, AIF_delay_corrected,AIF, idx_fig );
     else
         
-        [ Flow_vec, Delay_sec_by_Max_Val, t_delay_single_gauss_sec, sigma_seconds_single_gauss, ...
-          Amp_single_gauss, fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, Ktrans_vec, E_vec, Vb_vec, ...
-          Ve_vec, MTT_vec, Ktrans_Patlak_vec, Vb_Patlak_vec, MTT_Patlak_vec ] = Serial_Params_Est_Real_Data(Sim_Struct, Est_IRF, Ct, AIF_delay_corrected, idx_fig );
-       
+        [ ...
+          Flow_vec_with_Delay, Flow_vec_no_Delay, Delay_sec_by_Max_Val_with_Delay, Delay_sec_by_Max_Val_no_Delay, ...
+          t_delay_single_gauss_sec, sigma_seconds_single_gauss, Amp_single_gauss, ...
+          fitted_larsson_with_Delay, fitted_larsson_no_Delay, fitted_larsson_with_Delay_High_F, fitted_larsson_no_Delay_High_F, ...
+          fitted_larsson_with_Delay_no_E, fitted_larsson_no_Delay_no_E, fitted_larsson_with_Delay_no_E_High_F, fitted_larsson_no_Delay_no_E_High_F, ...
+          fitted_gaussian, fitted_double_gaussian, double_gaussian_param_vec, ...
+          Ktrans_with_Delay_vec, Ktrans_no_Delay_vec, ...
+          E_with_Delay, E_no_Delay, Ktrans_with_Delay_High_F, Ktrans_no_Delay_High_F,  ...
+          Vb_with_Delay, Vb_no_Delay, Vb_with_Delay_High_F, Vb_no_Delay_High_F, ...
+          Vb_with_Delay_no_E, Vb_no_Delay_no_E, Vb_with_Delay_no_E_High_F, Vb_no_Delay_no_E_High_F, ...
+          Ve_with_Delay, Ve_no_Delay, Ve_with_Delay_High_F, Ve_no_Delay_High_F, MTT_with_Delay, MTT_no_Delay, ...
+          Ktrans_Patlak_with_Delay_vec, Ktrans_Patlak_no_Delay_vec, Vb_Patlak_with_Delay_vec, Vb_Patlak_no_Delay_vec, ...
+          MTT_Patlak_with_Delay_vec, MTT_Patlak_no_Delay_vec ] ...
+          = Serial_Params_Est_Real_Data(Sim_Struct, Est_IRF_with_Delay, Est_IRF_no_Delay, Ct, AIF_delay_corrected, AIF, idx_fig );
     end
     
-    save(Mat_File_Perfusion_Parameters,'Flow_vec','t_delay_single_gauss_sec','sigma_seconds_single_gauss',...
-        'Amp_single_gauss','Ktrans_vec', 'E_vec', 'Vb_vec','Ve_vec','MTT_vec','Ktrans_Patlak_vec','Vb_Patlak_vec',...
-        'MTT_Patlak_vec','Delay_sec_by_Max_Val','double_gaussian_param_vec','fitted_gaussian','fitted_double_gaussian');
+    save(Mat_File_Perfusion_Parameters,'Flow_vec_with_Delay','Flow_vec_no_Delay','t_delay_single_gauss_sec','sigma_seconds_single_gauss',...
+        'Amp_single_gauss', 'Ktrans_with_Delay_vec','Ktrans_no_Delay_vec', 'E_with_Delay', 'E_no_Delay', 'Ktrans_with_Delay_High_F', 'Ktrans_no_Delay_High_F', ...
+        'Vb_with_Delay', 'Vb_no_Delay', 'Vb_with_Delay_High_F', 'Vb_no_Delay_High_F', 'Vb_with_Delay_no_E', 'Vb_no_Delay_no_E', 'Vb_with_Delay_no_E_High_F', 'Vb_no_Delay_no_E_High_F', ...
+        'Ve_with_Delay', 'Ve_no_Delay', 'Ve_with_Delay_High_F', 'Ve_no_Delay_High_F', 'MTT_with_Delay', 'MTT_no_Delay',...
+        'Ktrans_Patlak_with_Delay_vec','Ktrans_Patlak_no_Delay_vec', 'Vb_Patlak_with_Delay_vec','Vb_Patlak_no_Delay_vec',...
+        'MTT_Patlak_with_Delay_vec','MTT_Patlak_no_Delay_vec','Delay_sec_by_Max_Val_with_Delay',...
+        'Delay_sec_by_Max_Val_no_Delay','double_gaussian_param_vec','fitted_gaussian','fitted_double_gaussian', ...
+        'fitted_larsson_with_Delay','fitted_larsson_no_Delay', 'fitted_larsson_with_Delay_High_F', 'fitted_larsson_no_Delay_High_F', 'fitted_larsson_no_Delay_no_E', 'fitted_larsson_with_Delay_no_E', 'fitted_larsson_with_Delay_no_E_High_F', 'fitted_larsson_no_Delay_no_E_High_F');
     
 end
 
 % Calculate RMS of convolution result comparing to Ct(t)
-RMS_params              = sqrt( sum( (fitted_gaussian        - Est_IRF).^2 ,2) );
-RMS_params_double_gauss = sqrt( sum( (fitted_double_gaussian - Est_IRF).^2 ,2) );
+RMS_params_Gauss        = sqrt( sum( (fitted_gaussian        - Est_IRF_no_Delay).^2 ,2) );
+RMS_params_double_gauss = sqrt( sum( (fitted_double_gaussian - Est_IRF_no_Delay).^2 ,2) );
 
 %% Filter AIF through kernel
 
 % Filter the AIF with the estimated ht
 %conv_result_ht       = filter(Est_ht,1,AIF);
-conv_result_IRF       = filter(AIF*min_interval,1,Est_IRF,[],2);
+conv_result_no_Delay_IRF                 = filter(AIF*min_interval,1,Est_IRF_no_Delay,[],2);
+conv_result_Larss_with_Delay             = filter(AIF*min_interval,1,fitted_larsson_with_Delay,[],2);
+conv_result_Larss_no_Delay               = filter(AIF*min_interval,1,fitted_larsson_no_Delay,[],2);
+conv_result_Larss_with_Delay_High_F      = filter(AIF*min_interval,1,fitted_larsson_with_Delay_High_F,[],2);
+conv_result_Larss_no_Delay_High_F        = filter(AIF*min_interval,1,fitted_larsson_no_Delay_High_F,[],2);
+conv_result_Larss_with_Delay_no_E        = filter(AIF*min_interval,1,fitted_larsson_with_Delay_no_E,[],2);
+conv_result_Larss_no_Delay_no_E          = filter(AIF*min_interval,1,fitted_larsson_no_Delay_no_E,[],2);
+conv_result_Larss_with_Delay_no_E_High_F = filter(AIF*min_interval,1,fitted_larsson_with_Delay_no_E_High_F,[],2); 
+conv_result_Larss_no_Delay_no_E_High_F   = filter(AIF*min_interval,1,fitted_larsson_no_Delay_no_E_High_F,[],2);
 
 % Filter the AIF with the gaussian kernel
 %conv_result_gaussian = filter(calculated_gaussian*min_interval,1,AIF);
@@ -246,14 +293,51 @@ conv_result_gaussian        = filter(AIF*min_interval,1,fitted_gaussian,[],2);
 conv_result_double_gaussian = filter(AIF*min_interval,1,fitted_double_gaussian,[],2);
 
 % Zero negative values
-conv_result_IRF(conv_result_IRF<0)                         = 0;
-conv_result_gaussian(conv_result_gaussian<0)               = 0;
-conv_result_double_gaussian(conv_result_double_gaussian<0) = 0;
+conv_result_no_Delay_IRF(conv_result_no_Delay_IRF<0)                                 = 0;
+conv_result_Larss_with_Delay(conv_result_Larss_with_Delay<0)                         = 0;
+conv_result_Larss_no_Delay(conv_result_Larss_no_Delay<0)                             = 0;
+conv_result_Larss_with_Delay_High_F(conv_result_Larss_with_Delay_High_F<0)           = 0;
+conv_result_Larss_no_Delay_High_F(conv_result_Larss_no_Delay_High_F<0)               = 0;
+conv_result_Larss_with_Delay_no_E(conv_result_Larss_with_Delay_no_E<0)               = 0;
+conv_result_Larss_no_Delay_no_E(conv_result_Larss_no_Delay_no_E<0)                   = 0;
+conv_result_Larss_with_Delay_no_E_High_F(conv_result_Larss_with_Delay_no_E_High_F<0) = 0;
+conv_result_Larss_no_Delay_no_E_High_F(conv_result_Larss_no_Delay_no_E_High_F<0)     = 0;
+
+conv_result_gaussian(conv_result_gaussian<0)                                         = 0;
+conv_result_double_gaussian(conv_result_double_gaussian<0)                           = 0;
 
 % Calculate RMS of convolution results comparing to Ct(t)
-RMS_ht           = sqrt( sum( (Ct - conv_result_IRF).^2 , 2) );
-RMS_gauss        = sqrt( sum( (Ct - conv_result_gaussian).^2, 2) );
-RMS_double_gauss = sqrt( sum( (Ct - conv_result_double_gaussian).^2, 2) );
+RMS_ht_no_Delay                  = sqrt( sum( (Ct - conv_result_no_Delay_IRF                ).^2 , 2) );
+RMS_Larss_with_Delay             = sqrt( sum( (Ct - conv_result_Larss_with_Delay            ).^2 , 2) );
+RMS_Larss_no_Delay               = sqrt( sum( (Ct - conv_result_Larss_no_Delay              ).^2 , 2) );
+RMS_Larss_with_Delay_High_F      = sqrt( sum( (Ct - conv_result_Larss_with_Delay_High_F     ).^2 , 2) );
+RMS_Larss_no_Delay_High_F        = sqrt( sum( (Ct - conv_result_Larss_no_Delay_High_F       ).^2 , 2) );
+RMS_Larss_with_Delay_no_E_3D     = sqrt( sum( (Ct - conv_result_Larss_with_Delay_no_E       ).^2 , 2) );
+RMS_Larss_no_Delay_no_E          = sqrt( sum( (Ct - conv_result_Larss_no_Delay_no_E         ).^2 , 2) );
+RMS_Larss_with_Delay_no_E_High_F = sqrt( sum( (Ct - conv_result_Larss_with_Delay_no_E_High_F).^2 , 2) );
+RMS_Larss_no_Delay_no_E_High_F   = sqrt( sum( (Ct - conv_result_Larss_no_Delay_no_E_High_F  ).^2 , 2) );
+%RMS_Larss_no_Delay_zero_params = sqrt( sum( (Ct - repmat(mean(Ct,2), 1, size(Ct,2))).^2 , 2) );
+RMS_Larss_no_Delay_zero_params   = sqrt( sum( (Ct - zeros(size(Ct))                         ).^2 , 2) );
+
+RMS_gauss                        = sqrt( sum( (Ct - conv_result_gaussian).^2, 2) );
+RMS_double_gauss                 = sqrt( sum( (Ct - conv_result_double_gaussian).^2, 2) );
+
+% Change all places of with 0 to Inf (because 0 is unrealistic)
+
+% RMS_ht_no_Delay                  (RMS_ht_no_Delay                  == 0) = Inf;
+% RMS_Larss_with_Delay             (RMS_Larss_with_Delay             == 0) = Inf;
+% RMS_Larss_no_Delay               (RMS_Larss_no_Delay               == 0) = Inf;
+% RMS_Larss_with_Delay_High_F      (RMS_Larss_with_Delay_High_F      == 0) = Inf;
+% RMS_Larss_no_Delay_High_F        (RMS_Larss_no_Delay_High_F        == 0) = Inf;
+% RMS_Larss_with_Delay_no_E_3D     (RMS_Larss_with_Delay_no_E_3D     == 0) = Inf;
+% RMS_Larss_no_Delay_no_E          (RMS_Larss_no_Delay_no_E          == 0) = Inf;
+% RMS_Larss_with_Delay_no_E_High_F (RMS_Larss_with_Delay_no_E_High_F == 0) = Inf;
+% RMS_Larss_no_Delay_no_E_High_F   (RMS_Larss_no_Delay_no_E_High_F   == 0) = Inf;
+% %RMS_Larss_no_Delay_zero_params = sqrt( sum( (Ct - repmat(mean(Ct,2), 1, size(Ct,2))).^2 , 2) );
+% RMS_Larss_no_Delay_zero_params   (RMS_Larss_no_Delay_zero_params   == 0) = Inf;
+% 
+% RMS_gauss                        (RMS_gauss                        == 0) = Inf;
+% RMS_double_gauss                 (RMS_double_gauss                 == 0) = Inf;
 
 end
 

@@ -1,4 +1,4 @@
-function [ est_delay_by_AIF_correct, Sim_AIF_with_noise_Regul_shifted, Final_Filter_Estimation_Larss, idx_fig ] = AIF_Delay_Correct( Sim_Struct, ht_Struct, Final_Filter_Estimation_Larss, Sim_Ct_larss_Regul_noise,Verbosity, iter_num, avg_num, idx_fig)
+function [ est_delay_by_AIF_correct_sec, Sim_AIF_with_noise_Regul_shifted, Final_Filter_Estimation_Larss, idx_fig ] = AIF_Delay_Correct( Sim_Struct, ht_Struct, Final_Filter_Estimation_Larss, Sim_Ct_larss_Regul_noise,Verbosity, iter_num, avg_num, idx_fig)
 
 % Take from struct variables used in local function
 normalize                       = Sim_Struct.normalize;
@@ -27,8 +27,10 @@ adjusted_larsson                = Sim_Struct.Adjusted_Larsson_Model;
 Filter_Est_Chosen               = Sim_Struct.Filter_Est_Chosen;
 RealData_Flag                   = Sim_Struct.RealData_Flag;
 Simple_AIF_Delay_Correct        = Sim_Struct.Simple_AIF_Delay_Correct;
+LQ_Model_AIF_Delay_Correct      = Sim_Struct.LQ_Model_AIF_Delay_Correct;
 init_Ve_guess                   = Sim_Struct.init_Ve_guess;
 FMS_Algorithm                   = Sim_Struct.FMS_Algorithm;
+LQ_Model_AIF_Delay_Correct      = Sim_Struct.LQ_Model_AIF_Delay_Correct;
 
 %Final_Filter_Estimation_Larss   = ht_Struct.Final_Filter_Estimation_Larss;
 %Sim_Ct_larss_Regul_noise        = ht_Struct.Sim_Ct_larss_Regul_noise;
@@ -39,7 +41,7 @@ Conv_X_no_noise                 = ht_Struct.Conv_X_no_noise;
 % ---------------------------------------------------------------------
 %                 Regular correction by looking on h(t) shift
 % ---------------------------------------------------------------------
-est_simple_delay       = NaN; % Initiate with NaN
+est_simple_delay_min       = NaN; % Initiate with NaN
 
 if Simple_AIF_Delay_Correct
     
@@ -54,7 +56,7 @@ if Simple_AIF_Delay_Correct
         if ~isempty(peak_idx)
             
             % The estimated delay in minutes
-            est_simple_delay                   = time_vec_minutes(peak_idx(1));
+            est_simple_delay_min                   = time_vec_minutes(peak_idx(1));
             
             % Shift the AIF according to estimation
             shift_index                                             = peak_idx(1);
@@ -76,26 +78,89 @@ if Simple_AIF_Delay_Correct
                     
             end
         else
-            est_simple_delay                 = 0; % If the maximum is the first delay, there is no delay
+            est_simple_delay_min                 = 0; % If the maximum is the first delay, there is no delay
             Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
             
         end
     else
         
-        est_simple_delay                 = 0; % If the maximum is the first delay, there is no delay
+        est_simple_delay_min                 = 0; % If the maximum is the first delay, there is no delay
         Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
         
     end
     
-    est_delay_by_AIF_correct = est_simple_delay;
+    est_delay_by_AIF_correct_sec = est_simple_delay_min*60;
     
         
     return;
+
+elseif LQ_Model_AIF_Delay_Correct
+    % ---------------------------------------------------------------------
+    %                 Correction by Linear-Quadratic model (Cheong 2003)
+    % ---------------------------------------------------------------------
     
+    % Get the index of maximal point
+    [~, max_idx] = max(Final_Filter_Estimation_Larss);
+    
+    %all_X_mats = zeros(max_idx,3,max_idx);
+    
+    % If the maximum is not the first value, we might think there is a delay
+    if (max_idx ~= 1)
+        
+        % Initiate error vector in which we look for minimum
+        error_vector = Inf*ones(max_idx,1); 
+        CTC_vec      = Sim_Ct_larss_Regul(1:max_idx);
+        
+        
+        
+        for possible_delay_idx = 1 : max_idx
+            
+
+            LB_vec = [-Inf; 0   ;  0]; % beta1 and beta2 must be positive
+            UB_vec = [+Inf; +Inf; +Inf]; % beta1 and beta2 must be positive
+            
+            % Solve Constrained Linear Least-Squares Problem
+            % min (X_mat*beta_vec - CTC_vec)^2, such that lower_bound < beta_vec
+            
+            % Build the minimization matrix
+            
+            X_mat      = build_LQ_model_matrix( time_vec_minutes, possible_delay_idx, max_idx );
+            
+            %all_X_mats(:,:,possible_delay_idx) = X_mat;
+            
+            % [x,resnorm,residual,exitflag,output,lambda] = lsqlin(_)
+            algo_options   = optimset('Display','off');
+            [beta_vec, error_vector(possible_delay_idx) ] = lsqlin(X_mat,CTC_vec,[],[],[],[],LB_vec,UB_vec,[],algo_options);
+            %[~       , error_vector(possible_delay_idx) ] = lsqlin(X_mat,CTC_vec,[],[],[],[],LB_vec,UB_vec);
+            
+        end
+        
+        % Set the estimation as the one that minimizes least squares
+        [~, best_idx] = min(error_vector);
+        est_LQ_model_min  = time_vec_minutes(best_idx);
+        
+        shift_index                                             = best_idx;
+        Sim_AIF_with_noise_Regul_shifted                        = zeros(size(Sim_AIF_with_noise_Regul));
+        Sim_AIF_with_noise_Regul_shifted(1:end-shift_index)     = Sim_AIF_with_noise_Regul(shift_index+1:end);
+        Sim_AIF_with_noise_Regul_shifted(end-shift_index+1:end) = Sim_AIF_with_noise_Regul_shifted(end-shift_index); % Duplicate the last values?
+        
+        
+    else
+        
+        est_LQ_model_min                     = 0; % If the maximum is the first delay, there is no delay
+        Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
+        
+    end
+    
+    est_delay_by_AIF_correct_sec = est_LQ_model_min*60;
+    
+    return;
+    
+
+else
     % ---------------------------------------------------------------------
     %                 Correction by setting multiple optional time delays
     % ---------------------------------------------------------------------
-else
     
     %     [peak_val, peak_idx]       = findpeaks(b_spline_larss_result_2nd_deriv);
     %     est_delay_by_spline_result = time_vec_minutes(peak_idx(1));
@@ -119,6 +184,7 @@ else
     shift_times      = ( (Min_Time_Delay:time_res_sec:Max_Time_Delay) / 60);
     shift_indices    = round(shift_times/Upsampling_resolution);
     num_shifts       = length(shift_times);
+    AIFShiftVersions = zeros(length(time_vec_minutes), num_shifts);
     
     % Initiate shifts matrices results
     CTC_size         = length(Final_Filter_Estimation_Larss);
@@ -155,6 +221,8 @@ else
         end
         % Downsample to original resolution
         Sim_AIF_with_noise_Regul_shifted = downsample(Sim_AIF_with_noise_Regul_up_samp_shifted,UpSampFactor);
+        % Save shifted AIF version
+        AIFShiftVersions(:,i)            = Sim_AIF_with_noise_Regul_shifted;
         
         %% Create the new Convolution matrix
         [ Conv_X_shift ] = Convolution_Matrix( min_interval, Sim_AIF_with_noise_Regul_shifted );
@@ -195,7 +263,7 @@ else
             est_F_noise         = max(Spline_est(:,i));
             if est_F_noise<=0
                 % Something is wrong with data. Return the input and stop iterating
-                est_delay_by_AIF_correct         = 0;
+                est_delay_by_AIF_correct_sec         = 0;
                 Sim_AIF_with_noise_Regul_shifted = Sim_AIF_with_noise_Regul;
                 %Final_Filter_Estimation_Larss
                 return;
@@ -406,7 +474,7 @@ min_idx_BiExp      = min_idx_BiExp(1); % Take the first one if there is more tha
 % Estimate the delay
 min_shift_sec_BiExp           = shift_times(min_idx_BiExp)*60;
 min_shift_sec_CTC             = shift_times(min_idx_CTC)*60;
-est_delay_by_AIF_correct      = shift_times(min_idx)*60;
+est_delay_by_AIF_correct_sec      = shift_times(min_idx)*60;
 
 
 % CTC = smooth(Sim_Ct_larss_Regul_noise);
@@ -420,6 +488,120 @@ est_delay_by_AIF_correct      = shift_times(min_idx)*60;
 
 
 if (plot_flag)
+    
+    %% ACoPeD printing - Preparing parameters
+    font_size           = 25;
+    line_width          = 15;
+    line_width_small    = 7;
+    line_width_smallest = 3;
+    orig_AIF            = Sim_AIF_with_noise_Regul;
+    orig_CTC            = Sim_Ct_larss_Regul_noise;
+    shifted_AIFs        = AIFShiftVersions;
+    deconvoled_IRFs     = Spline_est;
+    BiExp_fit           = est_F_noise * exp_fit;
+    CTC_fitted          = Est_CTCs;
+    
+    % \\fmri-guy2\Dropbox\University\Msc\Thesis\MRM Submission\Figures Etc
+    
+    %% ACoPeD printing - 1 - CTC
+    fig_num = figure;
+    plot(time_vec_minutes, orig_CTC,'LineWidth',line_width_smallest,'Color','k');
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('C_t(t)','FontSize',font_size,'FontWeight','bold');
+    title('Concentration-Time-Curve','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    % Print result to PDF
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_1.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_1', 'ACoPeD_AIFDelayEst_1');
+    %% ACoPeD printing - 2 - AIF shifted
+    
+    fig_num = figure;
+    plot(time_vec_minutes, shifted_AIFs(:,12:20:end),'LineWidth',line_width_smallest);
+    hold on;
+    %h1 = plot(time_vec_minutes, orig_AIF,'LineWidth',line_width_smallest,'Color','k');
+    hold off;
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('AIF(t)_{shifted}','FontSize',font_size,'FontWeight','bold');
+    title('Shifted Arterial-Input-Functions','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    %legend(h1, 'Original AIF','FontSize',font_size,'FontWeight','bold');
+    legend boxoff;
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_2.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_2', 'ACoPeD_AIFDelayEst_2');
+    
+    %% ACoPeD printing - 3 - Original AIF
+    
+    fig_num = figure;
+    plot(time_vec_minutes, orig_AIF, 'LineWidth', line_width_smallest,'Color','k');
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('AIF(t)','FontSize',font_size,'FontWeight','bold');
+    title('Orig. Arterial-Input-Function','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_3.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_3', 'ACoPeD_AIFDelayEst_3');
+    
+    %% ACoPeD printing - 3.1 - Chosen AIF
+    
+    fig_num = figure;
+    plot(time_vec_minutes, orig_AIF, 'LineWidth', line_width_smallest,'Color','b');
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('AIF(t)','FontSize',font_size,'FontWeight','bold');
+    title('Chosen Arterial-Input-Function','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_3_1.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_3_1', 'ACoPeD_AIFDelayEst_3_1');
+    
+    %% ACoPeD printing - 3 - Shifted AIFs
+    
+    fig_num = figure;
+    plot(time_vec_minutes, deconvoled_IRFs(:,12:20:end),'LineWidth',line_width_smallest);
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('IRF(t)','FontSize',font_size,'FontWeight','bold');
+    title('Impulse-Response-Functions','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_4.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_4', 'ACoPeD_AIFDelayEst_4');
+    
+    %% ACoPeD printing - 4 - IRFs
+    
+    fig_num = figure;
+    plot(time_vec_minutes, deconvoled_IRFs(:,12:20:end),'LineWidth',line_width_smallest);
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('IRF(t)','FontSize',font_size,'FontWeight','bold');
+    title('Impulse-Response-Functions','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_5.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_5', 'ACoPeD_AIFDelayEst_5');
+    
+    %% ACoPeD printing - 5 - BiExps
+    
+    fig_num = figure;
+    plot(time_vec_minutes, BiExp_fit(:,12:20:end),'LineWidth',line_width_smallest);
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('IRF(t)_{fit}','FontSize',font_size,'FontWeight','bold');
+    title('Bi-Exponential Fit','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_6.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_6', 'ACoPeD_AIFDelayEst_6');
+    
+    %% ACoPeD printing - 6 - Fitted CTC
+    
+    fig_num = figure;
+    plot(time_vec_minutes, CTC_fitted(:,12:20:end),'LineWidth',line_width_smallest);
+    hold on;
+    h1 = plot(time_vec_minutes, orig_CTC,'LineWidth',line_width_smallest/2,'Color','k','LineStyle', '--');
+    hold off;
+    xlabel('Time [Min]','FontSize',font_size,'FontWeight','bold');
+    ylabel('CTC(t)_{fit}','FontSize',font_size,'FontWeight','bold');
+    title('Concentration-Time-Curve Fit','FontSize',font_size,'FontWeight','bold');
+    set(gca,'FontSize',font_size,'FontWeight','bold');
+    h_legend = legend(h1, 'Original CTC','Location','NorthWest');
+    set(h_legend,'FontSize',font_size*0.75);
+    legend boxoff;
+    [Sim_Struct.idx_fig] = Print2Pdf(fig_num, Sim_Struct.idx_fig, 'ACoPeD_Estimation_7.png', './Run_Output/', 'ACoPeD - AIF Delay Estimation_7', 'ACoPeD_AIFDelayEst_7');
+    
+    
+    %%
     
     fig_num = figure;
     

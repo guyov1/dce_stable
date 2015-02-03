@@ -1,12 +1,13 @@
-function [ est_Ktrans_Patlak_noise, est_Vb_Patlak_noise ,est_E_Patlak_noise, est_MTT_Patlak_noise, idx_fig ] = Patlak_Estimation( Sim_Struct, Sim_AIF_with_noise, Sim_Ct_larss_kernel, est_F_noise, Verbosity, iter_num, avg_num, idx_fig)
+function [ est_Ktrans_Patlak_noise, est_Vb_Patlak_noise ,est_E_Patlak_noise, est_MTT_Patlak_noise, idx_fig ] ...
+    = Patlak_Estimation( Sim_Struct, Sim_AIF_with_noise, Sim_Ct_larss_kernel, est_F_noise, Verbosity, iter_num, avg_num, idx_fig)
 
 % Handle zero value
 if ( est_F_noise <= 0 )
-    ret_value             = NaN;
-    est_Ktrans_Patlak_noise   = ret_value;
-    est_Vb_Patlak_noise   = ret_value;
-    est_E_Patlak_noise    = ret_value;
-    est_MTT_Patlak_noise  = ret_value;
+    ret_value               = NaN;
+    est_Ktrans_Patlak_noise = ret_value;
+    est_Vb_Patlak_noise     = ret_value;
+    est_E_Patlak_noise      = ret_value;
+    est_MTT_Patlak_noise    = ret_value;
     return;
 end
 

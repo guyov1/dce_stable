@@ -16,12 +16,18 @@ Sim_Struct.Correct_PVE                   = true;   % Correct Partial Volume Effe
 Sim_Struct.Threshold_Norm_Maps           = false;  % Threshold maps before normalizeing them to 0-1 (avoid saturation effects)
 Sim_Struct.Threshold_Val                 = 0.026768 * 242.9221;
 
+% Use model selection
+Sim_Struct.Use_Model_Selection           = true;
+Sim_Struct.AIC_Correction                = true; % Use correction for AIC
+Sim_Struct.Data_Weight                   = 0.1;  % Data weight comparing to # of params (Gilad uses 0.1)
+Sim_Struct.Ignore_Delay_Model_Selection  = false; % Ignore models with delay
+
 % Force serial and not parallel
-Sim_Struct.FORCE_SERIAL                  = false;
-Sim_Struct.FORCE_MAIN_LOOP_SERIAL        = false;
+Sim_Struct.FORCE_SERIAL                  = true;
+Sim_Struct.FORCE_MAIN_LOOP_SERIAL        = true;
 
 % Set number of iterations for simulation
-Sim_Struct.num_iterations                = 1000; %15
+Sim_Struct.num_iterations                = 1000; %1500
 % Avoid memory overhead if there are too many iteratins
 if (Sim_Struct.num_iterations > 40)
     Sim_Struct.FORCE_SERIAL                  = true;
@@ -44,7 +50,7 @@ Sim_Struct.iterate_E_larsson             = 0;
 Sim_Struct.iterate_Ve_larsson            = 0;
 Sim_Struct.iterate_AIF_delay             = 0;
 Sim_Struct.iterate_uniformly             = 1; % Uniformly generate parameters data
-Sim_Struct.Add_Randomly_AIF_Delay        = 0;
+Sim_Struct.Add_Randomly_AIF_Delay        = 1;
 
 % Choose which Patlak estimation to take
 % Possible - 1. "Specified Points" 2. "All Points" 3. "Weighted Points"
@@ -96,10 +102,10 @@ Sim_Struct.knots                    = Sim_Struct.time_vec_minutes(1:Sim_Struct.k
 
 % Add randomly delay to the AIF
 Sim_Struct.AIF_delay_low                 = -0.0;
-Sim_Struct.AIF_delay_max                 = +3.0;
+Sim_Struct.AIF_delay_max                 = +20.0;
 
 % Delay parameters
-Sim_Struct.additional_AIF_delay_sec     = +0.0; % Delay added to AIF before filtering
+Sim_Struct.additional_AIF_delay_sec     = +-1; % Delay added to AIF before filtering
 Sim_Struct.additional_AIF_delay_sec_vec = linspace(Sim_Struct.AIF_delay_low, Sim_Struct.AIF_delay_max, Sim_Struct.num_iterations); % When iterating;;
 
 % AIF parameters - Parker's AIF
@@ -127,12 +133,13 @@ Sim_Struct.Use_Upsampling_and_Cyclic              = false;      % Use cyclic de-
 Sim_Struct.Use_Upsampling_Delay_Comp              = false;      % Upsample Ct(t) and AIF(t) to try and predict time shift in AIF
 Sim_Struct.Upsampling_resolution_Sec              = 0.1;        % Set the upsampling target
 Sim_Struct.Upsampling_resolution                  = Sim_Struct.Upsampling_resolution_Sec / 60;   % Set the upsampling target
-Sim_Struct.Correct_estimation_due_to_delay        = true;      % Try to correct for delay
 Sim_Struct.Max_Time_Delay                         = Sim_Struct.AIF_delay_max;  % Set the maximal possible time delay in seconds for correction
 Sim_Struct.Min_Time_Delay                         = Sim_Struct.AIF_delay_low;  % Set the minimal possible time delay in seconds for correction
 Sim_Struct.RMS_Smooth                             = true;       % When calculating RMS, smooth CTC first
 Sim_Struct.RMS_Smooth_Around_Bolus                = false;      % Calculate RMS around bolus only (to avoid noise aggregation afterwards)
-Sim_Struct.Simple_AIF_Delay_Correct               = false;      % Correct AIF by max point shift
+Sim_Struct.Correct_estimation_due_to_delay        = true;       % Try to correct for delay
+Sim_Struct.Simple_AIF_Delay_Correct               = false;       % Correct AIF by max point shift
+Sim_Struct.LQ_Model_AIF_Delay_Correct             = false;      % Correct AIF by Linear-Quadratic model (Cheong 2003)
 Sim_Struct.Diff_From_Bolus                        = 10;         % The difference in seconds from the bolus to look on
 Sim_Struct.BiExp2CTC_RMS_Ratio                    = 0;          % Sets the ratio between BiExp fit and CTC fit when estimating time delay
 
@@ -311,9 +318,20 @@ if (Sim_Struct.Use_Upsampling_and_Cyclic && ~Sim_Struct.Use_Cyclic_Conv_4_ht_est
 end
 
 % Use AIF delay corrcetion only in case we allowed it
+if (Sim_Struct.LQ_Model_AIF_Delay_Correct && ~Sim_Struct.Correct_estimation_due_to_delay)
+    error('Cant correct for AIF delay, because correction is not enabled!');
+end
+
+% Use AIF delay corrcetion only in case we allowed it
 if (Sim_Struct.Simple_AIF_Delay_Correct && ~Sim_Struct.Correct_estimation_due_to_delay)
     error('Cant correct for AIF delay, because correction is not enabled!');
 end
+
+% Use AIF delay corrcetion only in case we allowed it
+if (Sim_Struct.Simple_AIF_Delay_Correct + Sim_Struct.LQ_Model_AIF_Delay_Correct > 1)
+    error('More than one AIF delay correction method chosen!');
+end
+
 
 if strcmp(Verbosity,'Full')
     display('-I- Finished Setting simulation parameters...');

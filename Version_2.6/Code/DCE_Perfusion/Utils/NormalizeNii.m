@@ -1,4 +1,4 @@
-function [  ] = NormalizeNii( Path, FileName, RefNii, Threshold, Threshold_val )
+function [ OutName ] = NormalizeNii( Path, FileName, RefNii, Threshold, Threshold_val )
 %UNTITLED4 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -20,9 +20,9 @@ else
 end
 
 
-MeanFN = [Path FileName suffix];
+OutName = [Path filesep FileName suffix];
 
-Raw2Nii(NiiMap_Norm_0_1, MeanFN, 'float32', RefNii);
+Raw2Nii(NiiMap_Norm_0_1, OutName, 'float32', RefNii);
 
 end
 
