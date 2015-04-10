@@ -1,4 +1,7 @@
 function In=UntilDelimiter(In,Del,K)
+if(nargin<3)
+    K=1;
+end
 if(iscell(In))
     for i=1:numel(In)
         In{i}=UntilDelimiter(In{i},Del,K);

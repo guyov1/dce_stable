@@ -1,15 +1,23 @@
 
+
 %____________________________________________________________________
 %DCE
-cd \\fmri-guy2\Dropbox\University\Msc\Thesis\SourceForge\Development
+
+% To forget stuff that auto-loads into MainGUI
+% delete([fileparts(getComputerParams('infosfn')) filesep 'LastMainGUI.mat'])
+
+%cd \\fmri-guy2\Dropbox\University\Msc\Thesis\SourceForge\Development
+cd \\fmri-guy2\Dropbox\University\Msc\Thesis\SourceForge\Stable_Versions\code\Version_2.9
 %AddNewScans
 %AddNewScans('/mnt/users/Moran/DCE/BVZ_Project/11_Magor_Ilan/W16')
 DCEInit
 setComputerParamM('temppath','D:\Temp\')
-Tmp=getComputerParams('tpm');
-copyfile(Tmp{1},[getComputerParams('temppath') 'XX.nii']);
+ delete([fileparts(getComputerParams('infosfn')) filesep 'LastMainGUI.mat'])
+% Tmp=getComputerParams('tpm');
+% copyfile(Tmp{1},[getComputerParams('temppath') 'XX.nii']);
 dbstop if error
 MainGUI
+
 
 %rm -rf /mnt/users/Moran/dcescripts/Stable_Versions/code/Version_1.3/dafna
 %%%- rm PathDefForDCE folder
