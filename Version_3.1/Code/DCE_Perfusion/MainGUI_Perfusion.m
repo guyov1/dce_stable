@@ -107,6 +107,14 @@ Defaults.AIC_Correction                  = 1;
 ParamToolTips.AIC_Correction             = ['AIC_Correction: Add Correction part to akaike.' 10 'Default: 1'];
 Defaults.Data_Weight                     = 0.02;
 ParamToolTips.Data_Weight                = ['Data_Weight: Data weight in AICc.' 10 'Default: 0.1'];
+
+Defaults.Data_Weight_Min                 = 0.02;
+ParamToolTips.Data_Weight                = ['Data_Weight: min Data weight in AICc.' 10 'Default: 0.1'];
+Defaults.Data_Weight_Max                 = 0.1;
+ParamToolTips.Data_Weight                = ['Data_Weight: max Data weight in AICc.' 10 'Default: 0.1'];
+Defaults.Data_Weight_Num                 = 10;
+ParamToolTips.Data_Weight                = ['Data_Weight: num of Data weights of min-max range in AICc.' 10 'Default: 0.1'];
+
 Defaults.poly_deg                        = 4;
 ParamToolTips.poly_deg                   = ['poly_deg: Degree of polynomial in splines.' 10 'Default: 4'];
 Defaults.knot_interval                   = 5;
@@ -364,7 +372,7 @@ PefusionOutput        = get(handles.Dest_Folder_TextBox,'String');
 % Override parameters with what user chose
 FNames  = {{'Use_Model_Selection'} {'Ignore_Delay_Model_Selection'} {'Correct_estimation_due_to_delay'} ...
            {'Min_Time_Delay'} {'Max_Time_Delay'} {'Force_RealData_Calc'} {'Parallel_Real_Data_Est'} ...
-           {'Correct_PVE'} {'AIC_Correction'} {'Data_Weight'} {'Adjusted_Larsson_Model'}...
+           {'Correct_PVE'} {'AIC_Correction'} {'Data_Weight'} {'Data_Weight_Min'} {'Data_Weight_Max'} {'Data_Weight_Num'} {'Adjusted_Larsson_Model'}...
            {'poly_deg'} {'knot_interval'} {'LQ_Model_AIF_Delay_Correct'} {'Upsampling_resolution_Sec'} ...
            {'Use_Cyclic_Conv_4_ht_est'} {'Simple_AIF_Delay_Correct'} {'manual_aif'}};
        
